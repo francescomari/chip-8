@@ -143,3 +143,41 @@ func TestConstIncrement(t *testing.T) {
 		}
 	}
 }
+
+func TestAssign(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0x60, 0xFF, // V0 = 0xFF,
+		0x81, 0x00, // V1 = V0,
+		0x82, 0x10, // V2 = V1,
+		0x83, 0x20, // V3 = V2,
+		0x84, 0x30, // V4 = V3,
+		0x85, 0x40, // V5 = V4,
+		0x86, 0x50, // V6 = V5,
+		0x87, 0x60, // V7 = V6,
+		0x88, 0x70, // V8 = V7,
+		0x89, 0x80, // V9 = V8,
+		0x8A, 0x90, // VA = V9,
+		0x8B, 0xA0, // VB = VA,
+		0x8C, 0xB0, // VC = VB,
+		0x8D, 0xC0, // VD = VC,
+		0x8E, 0xD0, // VE = VD,
+		0x8F, 0xE0, // VF = VE,
+		0x80, 0xF0, // V0 = VF,
+	})
+
+	e.Step()
+
+	for i := range 16 {
+		e.Step()
+
+		reg := (i + 1) % 16
+
+		if e.V()[reg] != 0xFF {
+			t.Fatalf("register %d not copied", reg)
+		}
+	}
+}
