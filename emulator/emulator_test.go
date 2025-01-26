@@ -63,7 +63,7 @@ func TestLoad(t *testing.T) {
 	e.Init()
 
 	// The maximum size of a program is the total memory size, minus the space
-	// reserved for the virtual machine
+	// reserved for the virtual machine.
 
 	var program [4096 - 512]uint8
 
@@ -75,5 +75,38 @@ func TestLoad(t *testing.T) {
 
 	if !slices.Equal(e.Memory()[0x200:], program[:]) {
 		t.Fatalf("memory not loaded")
+	}
+}
+
+func TestConstLoad(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0x60, 0xFF, // V0 = 0xFF,
+		0x61, 0xFF, // V1 = 0xFF,
+		0x62, 0xFF, // V2 = 0xFF,
+		0x63, 0xFF, // V3 = 0xFF,
+		0x64, 0xFF, // V4 = 0xFF,
+		0x65, 0xFF, // V5 = 0xFF,
+		0x66, 0xFF, // V6 = 0xFF,
+		0x67, 0xFF, // V7 = 0xFF,
+		0x68, 0xFF, // V8 = 0xFF,
+		0x69, 0xFF, // V9 = 0xFF,
+		0x6A, 0xFF, // VA = 0xFF,
+		0x6B, 0xFF, // VB = 0xFF,
+		0x6C, 0xFF, // VC = 0xFF,
+		0x6D, 0xFF, // VD = 0xFF,
+		0x6E, 0xFF, // VE = 0xFF,
+		0x6F, 0xFF, // VF = 0xFF,
+	})
+
+	for i := 0; i < 16; i++ {
+		e.Step()
+
+		if e.V()[i] != 0xFF {
+			t.Fatalf("register %d not loaded", i)
+		}
 	}
 }
