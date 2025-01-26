@@ -362,6 +362,15 @@ func TestJumpRelative(t *testing.T) {
 		register(0x0, 0x04)
 }
 
+func TestLoadIndex(t *testing.T) {
+	e := run(t,
+		0xa2, 0xff, // LD I, 0x2ff
+	)
+
+	check(t, e).
+		i(0x2ff)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
@@ -388,6 +397,16 @@ func (c checks) register(i int, want uint8) checks {
 
 	if got := c.e.V()[i]; got != want {
 		c.t.Fatalf("V%X: got %#x, want %#x", i, got, want)
+	}
+
+	return c
+}
+
+func (c checks) i(want uint16) checks {
+	c.t.Helper()
+
+	if got := c.e.I(); got != want {
+		c.t.Fatalf("I: got %#x, want %#x", got, want)
 	}
 
 	return c
