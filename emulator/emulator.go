@@ -105,14 +105,18 @@ func (e *Emulator) Step() {
 		e.v[x] += v
 		e.pc += 2
 	case 0x8000:
+		x := (op & 0x0F00) >> 8
+		y := (op & 0x00F0) >> 4
+
 		kind := op & 0x000F
 
 		switch kind {
 		case 0x0000:
-			x := (op & 0x0F00) >> 8
-			y := (op & 0x00F0) >> 4
 			e.v[x] = e.v[y]
-			e.pc += 2
+		case 0x0001:
+			e.v[x] |= e.v[y]
 		}
+
+		e.pc += 2
 	}
 }
