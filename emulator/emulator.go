@@ -114,6 +114,8 @@ func (e *Emulator) Step() bool {
 			// interpreter implements an opcode of this form as a HALT instruction.
 			return false
 		}
+	case 0x1000:
+		e.pc = op & 0x0fff
 	case 0x3000:
 		x := (op & 0x0f00) >> 8
 		n := uint8(op & 0x00ff)

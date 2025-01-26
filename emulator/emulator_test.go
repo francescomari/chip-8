@@ -953,6 +953,40 @@ func TestSkipIfNotEqualRegister(t *testing.T) {
 	})
 }
 
+func TestJump(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0x12, 0x04, // JP ...
+		0x60, 0x01, // LD V0, 0x01
+		0x61, 0x01, // LD V1, 0x01
+		0x00, 0x00, // HALT
+	})
+
+	e.Run()
+
+	checkRegisters(t, e.V(), []uint8{
+		0x00, // V0
+		0x01, // V1
+		0x00, // V2
+		0x00, // V3
+		0x00, // V4
+		0x00, // V5
+		0x00, // V6
+		0x00, // V7
+		0x00, // V8
+		0x00, // V9
+		0x00, // VA
+		0x00, // VB
+		0x00, // VC
+		0x00, // VD
+		0x00, // VE
+		0x00, // VF
+	})
+}
+
 func checkRegisters(t *testing.T, got, want []uint8) {
 	t.Helper()
 
