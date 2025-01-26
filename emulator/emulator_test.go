@@ -102,7 +102,7 @@ func TestConstLoad(t *testing.T) {
 		0x6F, 0xFF, // VF = 0xFF,
 	})
 
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		e.Step()
 
 		if e.V()[i] != 0xFF {

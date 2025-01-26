@@ -89,14 +89,20 @@ func (e *Emulator) Load(program []uint8) {
 }
 
 func (e *Emulator) Step() {
-	op := uint16(e.memory[e.pc])<<8 | uint16(e.memory[e.pc+1])
+	hi := uint16(e.memory[e.pc])
+	lo := uint16(e.memory[e.pc+1])
+	op := (hi << 8) | lo
 
 	switch op & 0xF000 {
 	case 0x6000:
-		e.v[(op&0x0F00)>>8] = uint8(op & 0x00FF)
+		x := (op & 0x0F00) >> 8
+		v := uint8(op & 0x00FF)
+		e.v[x] = v
 		e.pc += 2
 	case 0x7000:
-		e.v[(op&0x0F00)>>8] += uint8(op & 0x00FF)
+		x := (op & 0x0F00) >> 8
+		v := uint8(op & 0x00FF)
+		e.v[x] += v
 		e.pc += 2
 	case 0x8000:
 		kind := op & 0x000F
