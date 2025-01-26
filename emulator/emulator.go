@@ -144,6 +144,11 @@ func (e *Emulator) Step() bool {
 				e.v[0xf] = 1
 			}
 			e.v[x] += e.v[y]
+		case 0x0005:
+			if e.v[x] >= e.v[y] {
+				e.v[0xf] = 1
+			}
+			e.v[x] -= e.v[y]
 		}
 
 		e.pc += 2
