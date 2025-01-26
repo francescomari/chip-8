@@ -399,6 +399,25 @@ func TestStoreMemory(t *testing.T) {
 		memory(0x0301, 0x02)
 }
 
+func TestLoadMemory(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x01
+		0x61, 0x02, // LD V1, 0x01
+		0xa3, 0x00, // LD I, 0x300
+		0xf1, 0x55, // LD [I], V1
+		0x80, 0x03, // XOR V0, V0
+		0x81, 0x13, // XOR V0, V0
+		0xf1, 0x65, // LD V1, [I]
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0x1, 0x02).
+		index(0x0300).
+		memory(0x0300, 0x01).
+		memory(0x0301, 0x02)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 

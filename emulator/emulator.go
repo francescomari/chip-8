@@ -232,6 +232,10 @@ func (e *Emulator) Step() bool {
 			for n := range x + 1 {
 				e.memory[e.i+n] = e.v[n]
 			}
+		case 0x0065:
+			for n := range x + 1 {
+				e.v[n] = e.memory[e.i+n]
+			}
 		}
 
 		e.pc += 2
