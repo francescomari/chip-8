@@ -99,7 +99,6 @@ func TestConstLoad(t *testing.T) {
 		0x6d, 0xff, // LD VD, 0xFF
 		0x6e, 0xff, // LD VE, 0xFF
 		0x6f, 0xff, // LD VF, 0xFF
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -150,7 +149,6 @@ func TestConstIncrement(t *testing.T) {
 		0x7d, 0x0d, // ADD VD, 0x0D
 		0x7e, 0x0e, // ADD VE, 0x0E
 		0x7f, 0x0f, // ADD VF, 0x0F
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -198,7 +196,6 @@ func TestAssign(t *testing.T) {
 		0x8e, 0xd0, // LD VE, VD
 		0x8f, 0xe0, // LD VF, VE
 		0x80, 0xf0, // LD V0, VF
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -260,7 +257,6 @@ func TestBitwiseOr(t *testing.T) {
 		0x8d, 0x01, // OR VD, V0
 		0x8e, 0x01, // OR VE, V0
 		0x8f, 0x01, // OR VF, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -322,7 +318,6 @@ func TestBitwiseAnd(t *testing.T) {
 		0x8d, 0x02, // AND VD, V0
 		0x8e, 0x02, // AND VE, V0
 		0x8f, 0x02, // AND VF, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -384,7 +379,6 @@ func TestBitwiseXor(t *testing.T) {
 		0x8d, 0x03, // XOR VD, V0
 		0x8e, 0x03, // XOR VE, V0
 		0x8f, 0x03, // XOR VF, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -417,7 +411,6 @@ func TestAdd(t *testing.T) {
 		0x60, 0x01, // LD V0, 0x01
 		0x61, 0xfe, // LD V1, 0xfe
 		0x81, 0x04, // ADD V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -451,7 +444,6 @@ func TestAddOverflow(t *testing.T) {
 		0x60, 0x0f, // LD V0, 0x0f
 		0x61, 0xff, // LD V1, 0xff
 		0x81, 0x04, // ADD V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -486,7 +478,6 @@ func TestAddOverflowClear(t *testing.T) {
 		0x61, 0xff, // LD V1, 0xff
 		0x81, 0x04, // ADD V1, V0
 		0x81, 0x04, // ADD V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -520,7 +511,6 @@ func TestSub(t *testing.T) {
 		0x60, 0x01, // LD V0, 0x01
 		0x61, 0xff, // LD V1, 0xff
 		0x81, 0x05, // SUB V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -554,7 +544,6 @@ func TestSubUnderflow(t *testing.T) {
 		0x60, 0x02, // LD V0, 0x02
 		0x61, 0x01, // LD V1, 0x01
 		0x81, 0x05, // SUB V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -589,7 +578,6 @@ func TestSubUnderflowClear(t *testing.T) {
 		0x61, 0x00, // LD V1, 0x00
 		0x81, 0x05, // SUB V1, V0
 		0x81, 0x05, // SUB V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -622,7 +610,6 @@ func TestShiftRight(t *testing.T) {
 	e.Load([]uint8{
 		0x60, 0x02, // LD V0, 0x02
 		0x80, 0x06, // SHR V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -655,7 +642,6 @@ func TestShiftRightCarry(t *testing.T) {
 	e.Load([]uint8{
 		0x60, 0x03, // LD V0, 0x03
 		0x80, 0x06, // SHR V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -689,7 +675,6 @@ func TestSubn(t *testing.T) {
 		0x60, 0x03, // LD V0, 0x03
 		0x61, 0x01, // LD V1, 0x01
 		0x81, 0x07, // SUBN V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -723,7 +708,6 @@ func TestSubnUnderflow(t *testing.T) {
 		0x60, 0x01, // LD V0, 0x01
 		0x61, 0x03, // LD V1, 0x03
 		0x81, 0x07, // SUBN V1, V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -756,7 +740,6 @@ func TestShiftLeft(t *testing.T) {
 	e.Load([]uint8{
 		0x60, 0x40, // LD V0, 0x40
 		0x80, 0x0e, // SHL V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -789,7 +772,6 @@ func TestShiftLeftCarry(t *testing.T) {
 	e.Load([]uint8{
 		0x60, 0xc0, // LD V0, 0xc0
 		0x80, 0x0e, // SHL V0
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -823,7 +805,6 @@ func TestSkipIfEqual(t *testing.T) {
 		0x30, 0x00, // SE V0, 0
 		0x00, 0x00, // HALT
 		0x60, 0x01, // LD V0, 0x01
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -857,7 +838,6 @@ func TestSkipIfNotEqual(t *testing.T) {
 		0x40, 0x01, // SNE V0, 0x01
 		0x00, 0x00, // HALT
 		0x60, 0x01, // LD V0, 0x01
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -892,7 +872,6 @@ func TestSkipIfEqualRegister(t *testing.T) {
 		0x50, 0x10, // SE V0, V1
 		0x00, 0x00, // HALT
 		0x62, 0x02, // LD V2, 0x01
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -928,7 +907,6 @@ func TestSkipIfNotEqualRegister(t *testing.T) {
 		0x90, 0x10, // SNE V0, V1
 		0x00, 0x00, // HALT
 		0x62, 0x03, // LD V2, 0x03
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -962,7 +940,6 @@ func TestJump(t *testing.T) {
 		0x12, 0x04, // JP ...
 		0x60, 0x01, // LD V0, 0x01
 		0x61, 0x01, // LD V1, 0x01
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
@@ -1032,7 +1009,6 @@ func TestJumpRelative(t *testing.T) {
 		0xb2, 0x02, // JP V0, 0x202
 		0x00, 0x00, // HALT
 		0x61, 0x01, // LD V1, 0x01
-		0x00, 0x00, // HALT
 	})
 
 	e.Run()
