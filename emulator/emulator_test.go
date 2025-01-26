@@ -418,6 +418,21 @@ func TestLoadMemory(t *testing.T) {
 		memory(0x0301, 0x02)
 }
 
+func TestStoreBCD(t *testing.T) {
+	e := run(t,
+		0x60, 0xfe, // LD V0, 0xfe
+		0xa3, 0x00, // LD I, 0x300
+		0xf0, 0x33, // LD B, V0
+	)
+
+	check(t, e).
+		register(0x0, 0xfe).
+		index(0x300).
+		memory(0x300, 2).
+		memory(0x301, 5).
+		memory(0x302, 4)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
