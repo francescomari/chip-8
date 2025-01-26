@@ -213,6 +213,9 @@ func (e *Emulator) Step() bool {
 		} else {
 			e.pc += 2
 		}
+	case 0xb000:
+		n := op & 0x0fff
+		e.pc = uint16(e.v[0]) + n
 	}
 
 	return true
