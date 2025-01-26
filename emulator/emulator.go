@@ -114,6 +114,15 @@ func (e *Emulator) Step() bool {
 			// interpreter implements an opcode of this form as a HALT instruction.
 			return false
 		}
+	case 0x3000:
+		x := (op & 0x0f00) >> 8
+		n := uint8(op & 0x00ff)
+
+		if e.v[x] == n {
+			e.pc += 4
+		} else {
+			e.pc += 2
+		}
 	case 0x6000:
 		x := (op & 0x0f00) >> 8
 		v := uint8(op & 0x00ff)
