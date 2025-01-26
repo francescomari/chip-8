@@ -137,6 +137,8 @@ func (e *Emulator) Step() bool {
 			e.v[x] |= e.v[y]
 		case 0x0002:
 			e.v[x] &= e.v[y]
+		case 0x0003:
+			e.v[x] ^= e.v[y]
 		}
 
 		e.pc += 2
