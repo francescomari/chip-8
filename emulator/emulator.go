@@ -95,5 +95,8 @@ func (e *Emulator) Step() {
 	case 0x6000:
 		e.v[(op&0x0F00)>>8] = uint8(op & 0x00FF)
 		e.pc += 2
+	case 0x7000:
+		e.v[(op&0x0F00)>>8] += uint8(op & 0x00FF)
+		e.pc += 2
 	}
 }
