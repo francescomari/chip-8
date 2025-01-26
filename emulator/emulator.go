@@ -163,6 +163,9 @@ func (e *Emulator) Step() bool {
 				e.v[0xf] = 0
 			}
 			e.v[x] = e.v[y] - e.v[x]
+		case 0x000e:
+			e.v[0xf] = (e.v[x] & 0x80) >> 7
+			e.v[x] <<= 1
 		}
 
 		e.pc += 2
