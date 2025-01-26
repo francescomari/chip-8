@@ -132,6 +132,15 @@ func (e *Emulator) Step() bool {
 		} else {
 			e.pc += 2
 		}
+	case 0x5000:
+		x := (op & 0x0f00) >> 8
+		y := (op & 0x00f0) >> 4
+
+		if e.v[x] == e.v[y] {
+			e.pc += 4
+		} else {
+			e.pc += 2
+		}
 	case 0x6000:
 		x := (op & 0x0f00) >> 8
 		v := uint8(op & 0x00ff)
