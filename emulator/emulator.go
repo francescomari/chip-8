@@ -107,7 +107,9 @@ func (e *Emulator) Step() bool {
 		case 0x00e0:
 			panic("not implemented")
 		case 0x00ee:
-			panic("not implemented")
+			e.sp--
+			e.pc = e.stack[e.sp]
+			e.pc += 2
 		default:
 			// The opcode 0NNN jumps to a machine code routine at address NNN, but it
 			// is only used on the computers on which CHIP-8 was implemented. This
@@ -116,6 +118,10 @@ func (e *Emulator) Step() bool {
 		}
 	case 0x1000:
 		e.pc = op & 0x0fff
+	case 0x2000:
+		e.stack[e.sp] = e.pc
+		e.sp++
+		e.pc = op & 0xfff
 	case 0x3000:
 		x := (op & 0x0f00) >> 8
 		n := uint8(op & 0x00ff)
