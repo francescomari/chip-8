@@ -614,6 +614,72 @@ func TestSubUnderflowClear(t *testing.T) {
 	})
 }
 
+func TestShiftRight(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0x60, 0x02, // LD V0, 0x02
+		0x80, 0x06, // SHR V0
+		0x00, 0x00, // HALT
+	})
+
+	e.Run()
+
+	checkRegisters(t, e.V(), []uint8{
+		0x01, // V0
+		0x00, // V1
+		0x00, // V2
+		0x00, // V3
+		0x00, // V4
+		0x00, // V5
+		0x00, // V6
+		0x00, // V7
+		0x00, // V8
+		0x00, // V9
+		0x00, // VA
+		0x00, // VB
+		0x00, // VC
+		0x00, // VD
+		0x00, // VE
+		0x00, // VF
+	})
+}
+
+func TestShiftRightCarry(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0x60, 0x03, // LD V0, 0x03
+		0x80, 0x06, // SHR V0
+		0x00, 0x00, // HALT
+	})
+
+	e.Run()
+
+	checkRegisters(t, e.V(), []uint8{
+		0x01, // V0
+		0x00, // V1
+		0x00, // V2
+		0x00, // V3
+		0x00, // V4
+		0x00, // V5
+		0x00, // V6
+		0x00, // V7
+		0x00, // V8
+		0x00, // V9
+		0x00, // VA
+		0x00, // VB
+		0x00, // VC
+		0x00, // VD
+		0x00, // VE
+		0x01, // VF
+	})
+}
+
 func checkRegisters(t *testing.T, got, want []uint8) {
 	t.Helper()
 
