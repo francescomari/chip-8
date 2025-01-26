@@ -220,6 +220,16 @@ func (e *Emulator) Step() bool {
 	case 0xb000:
 		n := op & 0x0fff
 		e.pc = uint16(e.v[0]) + n
+	case 0xf000:
+		kind := op & 0x00ff
+
+		switch kind {
+		case 0x001e:
+			x := (op & 0x0f00) >> 8
+			e.i += uint16(e.v[x])
+		}
+
+		e.pc += 2
 	}
 
 	return true

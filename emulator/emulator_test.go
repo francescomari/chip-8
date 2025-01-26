@@ -371,6 +371,18 @@ func TestLoadIndex(t *testing.T) {
 		i(0x2ff)
 }
 
+func TestAddIndex(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x01
+		0xa0, 0x02, // LD I, 0x02
+		0xf0, 0x1e, // ADD I, V0
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		i(0x03)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
