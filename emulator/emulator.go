@@ -365,6 +365,12 @@ func (e *Emulator) Step() bool {
 			} else {
 				e.pc += 2
 			}
+		case 0x00a1:
+			if !e.keyDown || e.key != e.v[x] {
+				e.pc += 4
+			} else {
+				e.pc += 2
+			}
 		}
 	case 0xf000:
 		x := (op & 0x0f00) >> 8
