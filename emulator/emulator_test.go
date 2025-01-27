@@ -642,6 +642,20 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 		register(0x2, 0x00)
 }
 
+func TestSkipWithoutKeyDown(t *testing.T) {
+	e := run(t,
+		0x60, 0x0f, // LD V0, 0x0f
+		0xe0, 0x9e, // SKP V0
+		0x61, 0x01, // LD V1, 0x01
+		0xe0, 0xa1, // SKPN V0
+		0x62, 0x01, // LD V2, 0x01
+	)
+
+	check(t, e).
+		register(0x1, 0x01).
+		register(0x2, 0x00)
+}
+
 func check(t *testing.T, e *emulator.Emulator) checks {
 	return checks{t: t, e: e}
 }
