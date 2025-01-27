@@ -82,6 +82,15 @@ func (e *Emulator) DT() uint8 {
 	return e.dt
 }
 
+func (e *Emulator) DTClock() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.dt != 0 {
+		e.dt--
+	}
+}
+
 func (e *Emulator) ST() uint8 {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -333,6 +342,10 @@ func (e *Emulator) Step() bool {
 		kind := op & 0x00ff
 
 		switch kind {
+		case 0x0007:
+			e.v[x] = e.dt
+		case 0x0015:
+			e.dt = e.v[x]
 		case 0x0018:
 			e.st = e.v[x]
 		case 0x001e:

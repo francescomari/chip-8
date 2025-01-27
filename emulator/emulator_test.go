@@ -575,6 +575,33 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	return &e
 }
 
+func TestDelayTimer(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x02
+		0xf0, 0x15, // LD DT, V0
+		0xf1, 0x07, // LD V1, DT
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0x1, 0x01).
+		delayTimer(0x01)
+
+	// Clocking the timer should decrement it.
+
+	e.DTClock()
+
+	check(t, e).
+		delayTimer(0x00)
+
+	// Clocking the timer should not decremnt it below zero.
+
+	e.DTClock()
+
+	check(t, e).
+		delayTimer(0x00)
+}
+
 func check(t *testing.T, e *emulator.Emulator) checks {
 	return checks{t: t, e: e}
 }
@@ -641,6 +668,14 @@ func (c checks) display(x, y int, on bool) checks {
 func (c checks) soundTimer(want uint8) checks {
 	if got := c.e.ST(); got != want {
 		c.t.Fatalf("sound timer: got %#x, want %#x", got, want)
+	}
+
+	return c
+}
+
+func (c checks) delayTimer(want uint8) checks {
+	if got := c.e.DT(); got != want {
+		c.t.Fatalf("delay timer: got %#x, want %#x", got, want)
 	}
 
 	return c
