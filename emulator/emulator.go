@@ -121,7 +121,13 @@ func (e *Emulator) Step() bool {
 
 		switch kind {
 		case 0x00e0:
-			panic("not implemented")
+			for i := range DisplayMaxX {
+				for j := range DisplayMaxY {
+					e.display[i][j] = 0
+				}
+			}
+
+			e.pc += 2
 		case 0x00ee:
 			e.sp--
 			e.pc = e.stack[e.sp]

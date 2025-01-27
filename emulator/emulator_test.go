@@ -474,6 +474,25 @@ func TestDrawCollision(t *testing.T) {
 		display(8, 3, true)
 }
 
+func TestClearDisplay(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x01
+		0x61, 0x02, // LD V1, 0x02
+		0xa2, 0x0a, // LD I, 0x20c
+		0xd0, 0x12, // DRW V0, V1, 0x01
+		0x00, 0xe0, // CLS
+		0x00, 0x00, // HALT
+		0x80, // Bitmap, *.......
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0x01, 0x02).
+		register(0x0f, 0x00).
+		index(0x20a).
+		display(1, 2, false)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
