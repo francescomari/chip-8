@@ -602,6 +602,26 @@ func TestDelayTimer(t *testing.T) {
 		delayTimer(0x00)
 }
 
+func TestSkipOnKeyDown(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+	e.KeyDown(0xf)
+	e.Load([]uint8{
+		0x60, 0x0f, // LD V0, 0x0f
+		0xe0, 0x9e, // SKP V0
+		0x61, 0x01, // LD V1, 0x01
+		0x60, 0x0e, // LD V0, 0x0e
+		0xe0, 0x9e, // SKP V0
+		0x62, 0x01, // LD V2, 0x02
+	})
+	e.Run()
+
+	check(t, &e).
+		register(0x1, 0x00).
+		register(0x2, 0x01)
+}
+
 func check(t *testing.T, e *emulator.Emulator) checks {
 	return checks{t: t, e: e}
 }

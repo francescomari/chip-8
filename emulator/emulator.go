@@ -41,6 +41,8 @@ type Emulator struct {
 	st      uint8     // Sound timer
 	pc      uint16    // Program counter (12-bit)
 	display Display   // Display
+	key     uint8     // Currently pressed key, if any
+	keyDown bool      // Is a key pressed?
 }
 
 func (e *Emulator) Memory(buffer []uint8) {
@@ -127,6 +129,21 @@ func (e *Emulator) Display(buffer *Display) {
 			buffer[y][x] = e.display[y][x]
 		}
 	}
+}
+
+func (e *Emulator) KeyDown(key uint8) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.keyDown = true
+	e.key = key
+}
+
+func (e *Emulator) KeyUp() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.keyDown = false
 }
 
 func (e *Emulator) Init() {
@@ -336,6 +353,19 @@ func (e *Emulator) Step() bool {
 		}
 
 		e.pc += 2
+	case 0xe000:
+		x := (op & 0x0f00) >> 8
+
+		kind := op & 0x00ff
+
+		switch kind {
+		case 0x009e:
+			if e.keyDown && e.key == e.v[x] {
+				e.pc += 4
+			} else {
+				e.pc += 2
+			}
+		}
 	case 0xf000:
 		x := (op & 0x0f00) >> 8
 
