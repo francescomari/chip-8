@@ -1,7 +1,6 @@
 package emulator_test
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/francescomari/chip-8/emulator"
@@ -16,11 +15,10 @@ func TestInit(t *testing.T) {
 
 	e.Memory(memory[:])
 
-	if !slices.Equal(memory[:len(emulator.Fonts)], emulator.Fonts[:]) {
-		t.Fatalf("fonts not loaded")
-	}
+	// Memory location lower than 0x0200 are reserved to the interpreter and are
+	// not guaranteeed to be zeroed.
 
-	for _, v := range memory[len(emulator.Fonts):] {
+	for _, v := range memory[0x200:] {
 		if v != 0 {
 			t.Fatalf("memory not zeroed")
 		}

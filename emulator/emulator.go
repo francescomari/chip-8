@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-var Fonts [80]uint8 = [80]uint8{
+var fonts [80]uint8 = [80]uint8{
 	0xf0, 0x90, 0x90, 0x90, 0xf0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
 	0xf0, 0x10, 0xf0, 0x80, 0xf0, // 2
@@ -171,7 +171,7 @@ func (e *Emulator) Init() {
 		e.memory[i] = 0
 	}
 
-	copy(e.memory[:], Fonts[:])
+	copy(e.memory[:], fonts[:])
 
 	for i := range len(e.v) {
 		e.v[i] = 0
