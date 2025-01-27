@@ -9,7 +9,7 @@ import (
 func TestInit(t *testing.T) {
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 
 	var memory emulator.Memory
 
@@ -566,7 +566,7 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 	e.Load(data)
 	e.Run()
 
@@ -603,7 +603,7 @@ func TestDelayTimer(t *testing.T) {
 func TestSkipOnKeyDown(t *testing.T) {
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 	e.KeyDown(0xf)
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
@@ -623,7 +623,7 @@ func TestSkipOnKeyDown(t *testing.T) {
 func TestSkipOnKeyNotDown(t *testing.T) {
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 	e.KeyDown(0xf)
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
@@ -657,7 +657,7 @@ func TestSkipWithoutKeyDown(t *testing.T) {
 func TestWaitKeyPress(t *testing.T) {
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 
 	e.Load([]uint8{
 		0xf0, 0x0a, // LD V0, K
@@ -690,7 +690,7 @@ func TestWaitKeyPress(t *testing.T) {
 func TestRandom(t *testing.T) {
 	var e emulator.Emulator
 
-	e.Init()
+	e.Reset()
 
 	e.SetRNG(func() uint32 {
 		return 0x88

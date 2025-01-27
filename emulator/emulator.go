@@ -163,7 +163,7 @@ func (e *Emulator) SetRNG(rng func() uint32) {
 	e.rng = rng
 }
 
-func (e *Emulator) Init() {
+func (e *Emulator) Reset() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
