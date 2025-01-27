@@ -50,6 +50,12 @@ type Emulator struct {
 	rng         func() uint32 // Random number generator
 }
 
+func New() *Emulator {
+	var e Emulator
+	e.Reset()
+	return &e
+}
+
 func (e *Emulator) Memory(buffer []uint8) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

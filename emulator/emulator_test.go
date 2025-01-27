@@ -6,10 +6,8 @@ import (
 	"github.com/francescomari/chip-8/emulator"
 )
 
-func TestInit(t *testing.T) {
-	var e emulator.Emulator
-
-	e.Reset()
+func TestNew(t *testing.T) {
+	e := emulator.New()
 
 	var memory emulator.Memory
 
@@ -62,6 +60,18 @@ func TestInit(t *testing.T) {
 
 	if e.PC() != 0x200 {
 		t.Fatalf("program counter not initialized")
+	}
+
+	var display emulator.Display
+
+	e.Display(&display)
+
+	for y := range display {
+		for x := range display[y] {
+			if display[y][x] != 0 {
+				t.Fatalf("display not initialized")
+			}
+		}
 	}
 }
 
@@ -564,13 +574,12 @@ func TestSoundTimer(t *testing.T) {
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
-	var e emulator.Emulator
+	e := emulator.New()
 
-	e.Reset()
 	e.Load(data)
 	e.Run()
 
-	return &e
+	return e
 }
 
 func TestDelayTimer(t *testing.T) {
@@ -601,9 +610,8 @@ func TestDelayTimer(t *testing.T) {
 }
 
 func TestSkipOnKeyDown(t *testing.T) {
-	var e emulator.Emulator
+	e := emulator.New()
 
-	e.Reset()
 	e.KeyDown(0xf)
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
@@ -615,15 +623,14 @@ func TestSkipOnKeyDown(t *testing.T) {
 	})
 	e.Run()
 
-	check(t, &e).
+	check(t, e).
 		register(0x1, 0x00).
 		register(0x2, 0x01)
 }
 
 func TestSkipOnKeyNotDown(t *testing.T) {
-	var e emulator.Emulator
+	e := emulator.New()
 
-	e.Reset()
 	e.KeyDown(0xf)
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
@@ -635,7 +642,7 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 	})
 	e.Run()
 
-	check(t, &e).
+	check(t, e).
 		register(0x1, 0x01).
 		register(0x2, 0x00)
 }
@@ -655,9 +662,7 @@ func TestSkipWithoutKeyDown(t *testing.T) {
 }
 
 func TestWaitKeyPress(t *testing.T) {
-	var e emulator.Emulator
-
-	e.Reset()
+	e := emulator.New()
 
 	e.Load([]uint8{
 		0xf0, 0x0a, // LD V0, K
@@ -667,7 +672,7 @@ func TestWaitKeyPress(t *testing.T) {
 		t.Fatal("should continue")
 	}
 
-	check(t, &e).
+	check(t, e).
 		register(0x0, 0x00)
 
 	e.KeyDown(0x0f)
@@ -679,7 +684,7 @@ func TestWaitKeyPress(t *testing.T) {
 		t.Fatal("should continue")
 	}
 
-	check(t, &e).
+	check(t, e).
 		register(0x0, 0x0f)
 
 	if ok := e.Step(); ok {
@@ -688,9 +693,7 @@ func TestWaitKeyPress(t *testing.T) {
 }
 
 func TestRandom(t *testing.T) {
-	var e emulator.Emulator
-
-	e.Reset()
+	e := emulator.New()
 
 	e.SetRNG(func() uint32 {
 		return 0x88
@@ -702,7 +705,7 @@ func TestRandom(t *testing.T) {
 
 	e.Run()
 
-	check(t, &e).
+	check(t, e).
 		register(0x0, 0x08)
 }
 
