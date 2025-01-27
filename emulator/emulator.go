@@ -192,6 +192,9 @@ func (e *Emulator) Init() {
 	e.dt = 0
 	e.st = 0
 	e.pc = 0x200
+	e.keyDown = false
+	e.lastKeyWait = false
+	e.lastKeySet = false
 }
 
 func (e *Emulator) Load(program []uint8) {
