@@ -37,7 +37,7 @@ type Emulator struct {
 	i       uint16    // Index register (12-bit)
 	stack   Stack     // Stack frames
 	sp      uint8     // Pointer to the next available stack frame
-	dt      uint8     // Delaty timer
+	dt      uint8     // Delay timer
 	st      uint8     // Sound timer
 	pc      uint16    // Program counter (12-bit)
 	display Display   // Display
