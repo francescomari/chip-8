@@ -656,6 +656,39 @@ func TestSkipWithoutKeyDown(t *testing.T) {
 		register(0x2, 0x00)
 }
 
+func TestWaitKeyPress(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.Load([]uint8{
+		0xf0, 0x0a, // LD V0, K
+	})
+
+	if ok := e.Step(); !ok {
+		t.Fatal("should continue")
+	}
+
+	check(t, &e).
+		register(0x0, 0x00)
+
+	e.KeyDown(0x0f)
+	e.KeyUp()
+	e.KeyDown(0x01)
+	e.KeyUp()
+
+	if ok := e.Step(); !ok {
+		t.Fatal("should continue")
+	}
+
+	check(t, &e).
+		register(0x0, 0x0f)
+
+	if ok := e.Step(); ok {
+		t.Fatal("should stop")
+	}
+}
+
 func check(t *testing.T, e *emulator.Emulator) checks {
 	return checks{t: t, e: e}
 }

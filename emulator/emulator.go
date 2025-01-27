@@ -31,18 +31,21 @@ type (
 )
 
 type Emulator struct {
-	mu      sync.RWMutex
-	memory  Memory    // Main memory (4KB)
-	v       Registers // Register array (V0 to VF)
-	i       uint16    // Index register (12-bit)
-	stack   Stack     // Stack frames
-	sp      uint8     // Pointer to the next available stack frame
-	dt      uint8     // Delay timer
-	st      uint8     // Sound timer
-	pc      uint16    // Program counter (12-bit)
-	display Display   // Display
-	key     uint8     // Currently pressed key, if any
-	keyDown bool      // Is a key pressed?
+	mu          sync.RWMutex
+	memory      Memory    // Main memory (4KB)
+	v           Registers // Register array (V0 to VF)
+	i           uint16    // Index register (12-bit)
+	stack       Stack     // Stack frames
+	sp          uint8     // Pointer to the next available stack frame
+	dt          uint8     // Delay timer
+	st          uint8     // Sound timer
+	pc          uint16    // Program counter (12-bit)
+	display     Display   // Display
+	key         uint8     // Currently pressed key, if any
+	keyDown     bool      // Is a key pressed?
+	lastKey     uint8     // Last key pressed, if waiting and set
+	lastKeyWait bool      // Waiting for a key?
+	lastKeySet  bool      // Key set while waiting?
 }
 
 func (e *Emulator) Memory(buffer []uint8) {
@@ -137,6 +140,11 @@ func (e *Emulator) KeyDown(key uint8) {
 
 	e.keyDown = true
 	e.key = key
+
+	if e.lastKeyWait && !e.lastKeySet {
+		e.lastKey = key
+		e.lastKeySet = true
+	}
 }
 
 func (e *Emulator) KeyUp() {
@@ -380,29 +388,46 @@ func (e *Emulator) Step() bool {
 		switch kind {
 		case 0x0007:
 			e.v[x] = e.dt
+			e.pc += 2
+		case 0x0000a:
+			if e.lastKeyWait {
+				if e.lastKeySet {
+					e.v[x] = e.lastKey
+					e.lastKeyWait = false
+					e.lastKeySet = false
+					e.pc += 2
+				}
+			} else {
+				e.lastKeyWait = true
+			}
 		case 0x0015:
 			e.dt = e.v[x]
+			e.pc += 2
 		case 0x0018:
 			e.st = e.v[x]
+			e.pc += 2
 		case 0x001e:
 			e.i += uint16(e.v[x])
+			e.pc += 2
 		case 0x0029:
 			e.i = uint16(5 * e.v[x])
+			e.pc += 2
 		case 0x0033:
 			e.memory[e.i] = e.v[x] / 100
 			e.memory[e.i+1] = (e.v[x] % 100) / 10
 			e.memory[e.i+2] = e.v[x] % 10
+			e.pc += 2
 		case 0x0055:
 			for n := range x + 1 {
 				e.memory[e.i+n] = e.v[n]
 			}
+			e.pc += 2
 		case 0x0065:
 			for n := range x + 1 {
 				e.v[n] = e.memory[e.i+n]
 			}
+			e.pc += 2
 		}
-
-		e.pc += 2
 	}
 
 	return true
