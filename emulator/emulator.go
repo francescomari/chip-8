@@ -1,5 +1,9 @@
 package emulator
 
+import (
+	"sync"
+)
+
 var Fonts [80]uint8 = [80]uint8{
 	0xf0, 0x90, 0x90, 0x90, 0xf0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -19,60 +23,107 @@ var Fonts [80]uint8 = [80]uint8{
 	0xf0, 0x80, 0xf0, 0x80, 0x80, // F
 }
 
-const (
-	DisplayMaxX = 128
-	DisplayMaxY = 64
+type (
+	Memory    [4096]uint8
+	Registers [16]uint8
+	Stack     [16]uint16
+	Display   [64][128]uint8
 )
 
 type Emulator struct {
-	memory  [4096]uint8                     // Main memory (4KB)
-	v       [16]uint8                       // Register array (V0 to VF)
-	i       uint16                          // Index register (12-bit)
-	stack   [16]uint16                      // Stack frames
-	sp      uint8                           // Pointer to the next available stack frame
-	dt      uint8                           // Delaty timer
-	st      uint8                           // Sound timer
-	pc      uint16                          // Program counter (12-bit)
-	display [DisplayMaxX][DisplayMaxY]uint8 // Display
+	mu      sync.RWMutex
+	memory  Memory    // Main memory (4KB)
+	v       Registers // Register array (V0 to VF)
+	i       uint16    // Index register (12-bit)
+	stack   Stack     // Stack frames
+	sp      uint8     // Pointer to the next available stack frame
+	dt      uint8     // Delaty timer
+	st      uint8     // Sound timer
+	pc      uint16    // Program counter (12-bit)
+	display Display   // Display
 }
 
-func (e *Emulator) Memory() []uint8 {
-	return e.memory[:]
+func (e *Emulator) Memory(buffer []uint8) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	copy(buffer, e.memory[:])
 }
 
-func (e *Emulator) V() []uint8 {
-	return e.v[:]
+func (e *Emulator) V(buffer []uint8) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	copy(buffer, e.v[:])
 }
 
 func (e *Emulator) I() uint16 {
 	return e.i
 }
 
-func (e *Emulator) Stack() []uint16 {
-	return e.stack[:]
+func (e *Emulator) Stack(buffer []uint16) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	copy(buffer, e.stack[:])
 }
 
 func (e *Emulator) SP() uint8 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	return e.sp
 }
 
 func (e *Emulator) DT() uint8 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	return e.dt
 }
 
 func (e *Emulator) ST() uint8 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	return e.st
 }
 
+func (e *Emulator) STClock() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.st == 0 {
+		return false
+	}
+
+	e.st--
+
+	return e.st == 0
+}
+
 func (e *Emulator) PC() uint16 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	return e.pc
 }
 
-func (e *Emulator) Pixel(x, y int) uint8 {
-	return e.display[x][y]
+func (e *Emulator) Display(buffer *Display) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	for y := range buffer {
+		for x := range buffer[y] {
+			buffer[y][x] = e.display[y][x]
+		}
+	}
 }
 
 func (e *Emulator) Init() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	for i := range len(e.memory) {
 		e.memory[i] = 0
 	}
@@ -87,9 +138,9 @@ func (e *Emulator) Init() {
 		e.stack[i] = 0
 	}
 
-	for i := range DisplayMaxX {
-		for j := range DisplayMaxY {
-			e.display[i][j] = 0
+	for y := range e.display {
+		for x := range e.display[y] {
+			e.display[y][x] = 0
 		}
 	}
 
@@ -101,6 +152,9 @@ func (e *Emulator) Init() {
 }
 
 func (e *Emulator) Load(program []uint8) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	copy(e.memory[0x200:], program)
 }
 
@@ -111,6 +165,9 @@ func (e *Emulator) Run() {
 }
 
 func (e *Emulator) Step() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	hi := uint16(e.memory[e.pc])
 	lo := uint16(e.memory[e.pc+1])
 	op := (hi << 8) | lo
@@ -121,9 +178,9 @@ func (e *Emulator) Step() bool {
 
 		switch kind {
 		case 0x00e0:
-			for i := range DisplayMaxX {
-				for j := range DisplayMaxY {
-					e.display[i][j] = 0
+			for y := range e.display {
+				for x := range e.display[y] {
+					e.display[y][x] = 0
 				}
 			}
 
@@ -260,11 +317,11 @@ func (e *Emulator) Step() bool {
 				py := int(by) + int(dy)
 
 				if bit := sprite & (0x80 >> dx); bit != 0 {
-					if e.display[px][py] != 0 {
+					if e.display[py][px] != 0 {
 						e.v[0xf] = 1
 					}
 
-					e.display[px][py] ^= 1
+					e.display[py][px] ^= 1
 				}
 			}
 		}
@@ -276,6 +333,8 @@ func (e *Emulator) Step() bool {
 		kind := op & 0x00ff
 
 		switch kind {
+		case 0x0018:
+			e.st = e.v[x]
 		case 0x001e:
 			e.i += uint16(e.v[x])
 		case 0x0029:

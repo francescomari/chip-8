@@ -12,7 +12,9 @@ func TestInit(t *testing.T) {
 
 	e.Init()
 
-	memory := e.Memory()
+	var memory emulator.Memory
+
+	e.Memory(memory[:])
 
 	if !slices.Equal(memory[:len(emulator.Fonts)], emulator.Fonts[:]) {
 		t.Fatalf("fonts not loaded")
@@ -24,7 +26,11 @@ func TestInit(t *testing.T) {
 		}
 	}
 
-	for i, v := range e.V() {
+	var registers emulator.Registers
+
+	e.V(registers[:])
+
+	for i, v := range registers {
 		if v != 0 {
 			t.Fatalf("register %d not zeroed", i)
 		}
@@ -34,7 +40,11 @@ func TestInit(t *testing.T) {
 		t.Fatalf("index register not zeroed")
 	}
 
-	for _, v := range e.Stack() {
+	var stack emulator.Stack
+
+	e.Stack(stack[:])
+
+	for _, v := range stack {
 		if v != 0 {
 			t.Fatalf("stack not zeroed")
 		}
@@ -516,6 +526,43 @@ func TestCharacterAddress(t *testing.T) {
 		display(0, 4, true)
 }
 
+func TestSoundTimer(t *testing.T) {
+	e := run(t,
+		0x60, 0x02, // LD V0, 0x03
+		0xf0, 0x18, // LD ST, V0
+	)
+
+	check(t, e).
+		soundTimer(0x02)
+
+	// Clocking the timer should decrement it but not trigger it.
+
+	if trigger := e.STClock(); trigger {
+		t.Fatalf("timer triggered")
+	}
+
+	check(t, e).
+		soundTimer(0x01)
+
+	// Clocking the timer should decrement it and trigger it.
+
+	if trigger := e.STClock(); !trigger {
+		t.Fatalf("timer not triggered")
+	}
+
+	check(t, e).
+		soundTimer(0x00)
+
+	// Clocking the timer should keep the timer at 0 and not trigger it.
+
+	if trigger := e.STClock(); trigger {
+		t.Fatalf("timer triggered")
+	}
+
+	check(t, e).
+		soundTimer(0x00)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
@@ -540,7 +587,11 @@ type checks struct {
 func (c checks) register(i int, want uint8) checks {
 	c.t.Helper()
 
-	if got := c.e.V()[i]; got != want {
+	var registers emulator.Registers
+
+	c.e.V(registers[:])
+
+	if got := registers[i]; got != want {
 		c.t.Fatalf("V%X: got %#x, want %#x", i, got, want)
 	}
 
@@ -560,7 +611,11 @@ func (c checks) index(want uint16) checks {
 func (c checks) memory(address uint16, want uint8) checks {
 	c.t.Helper()
 
-	if got := c.e.Memory()[address]; got != want {
+	var memory emulator.Memory
+
+	c.e.Memory(memory[:])
+
+	if got := memory[address]; got != want {
 		c.t.Fatalf("memory[%x]: got %#x, want %#x", address, got, want)
 	}
 
@@ -570,10 +625,22 @@ func (c checks) memory(address uint16, want uint8) checks {
 func (c checks) display(x, y int, on bool) checks {
 	c.t.Helper()
 
-	if got := c.e.Pixel(x, y); on && got == 0 {
+	var buffer emulator.Display
+
+	c.e.Display(&buffer)
+
+	if got := buffer[y][x]; on && got == 0 {
 		c.t.Fatalf("display[%d,%d]: pixel should be on, but it is off", x, y)
 	} else if !on && got != 0 {
 		c.t.Fatalf("display[%d,%d]: pixel should be off, but it is on", x, y)
+	}
+
+	return c
+}
+
+func (c checks) soundTimer(want uint8) checks {
+	if got := c.e.ST(); got != want {
+		c.t.Fatalf("sound timer: got %#x, want %#x", got, want)
 	}
 
 	return c
