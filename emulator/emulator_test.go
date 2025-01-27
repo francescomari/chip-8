@@ -493,6 +493,29 @@ func TestClearDisplay(t *testing.T) {
 		display(1, 2, false)
 }
 
+func TestCharacterAddress(t *testing.T) {
+	e := run(t,
+		0x60, 0x0f, // LD V0, 0x0f
+		0xf0, 0x29, // LD F, V0
+		0xd1, 0x15, // DRW V1, V1, 0x05
+	)
+
+	check(t, e).
+		register(0x0, 0x0f).
+		register(0xf, 0).
+		display(0, 0, true).
+		display(1, 0, true).
+		display(2, 0, true).
+		display(3, 0, true).
+		display(0, 1, true).
+		display(0, 2, true).
+		display(1, 2, true).
+		display(2, 2, true).
+		display(3, 2, true).
+		display(0, 3, true).
+		display(0, 4, true)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 

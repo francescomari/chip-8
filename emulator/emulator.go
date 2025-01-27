@@ -278,6 +278,8 @@ func (e *Emulator) Step() bool {
 		switch kind {
 		case 0x001e:
 			e.i += uint16(e.v[x])
+		case 0x0029:
+			e.i = uint16(5 * e.v[x])
 		case 0x0033:
 			e.memory[e.i] = e.v[x] / 100
 			e.memory[e.i+1] = (e.v[x] % 100) / 10
