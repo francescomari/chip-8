@@ -689,6 +689,25 @@ func TestWaitKeyPress(t *testing.T) {
 	}
 }
 
+func TestRandom(t *testing.T) {
+	var e emulator.Emulator
+
+	e.Init()
+
+	e.SetRNG(func() uint32 {
+		return 0x88
+	})
+
+	e.Load([]uint8{
+		0xc0, 0x0f, // RND V0, 0xff
+	})
+
+	e.Run()
+
+	check(t, &e).
+		register(0x0, 0x08)
+}
+
 func check(t *testing.T, e *emulator.Emulator) checks {
 	return checks{t: t, e: e}
 }

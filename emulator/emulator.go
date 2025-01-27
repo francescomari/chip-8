@@ -1,6 +1,7 @@
 package emulator
 
 import (
+	"math/rand/v2"
 	"sync"
 )
 
@@ -32,20 +33,21 @@ type (
 
 type Emulator struct {
 	mu          sync.RWMutex
-	memory      Memory    // Main memory (4KB)
-	v           Registers // Register array (V0 to VF)
-	i           uint16    // Index register (12-bit)
-	stack       Stack     // Stack frames
-	sp          uint8     // Pointer to the next available stack frame
-	dt          uint8     // Delay timer
-	st          uint8     // Sound timer
-	pc          uint16    // Program counter (12-bit)
-	display     Display   // Display
-	key         uint8     // Currently pressed key, if any
-	keyDown     bool      // Is a key pressed?
-	lastKey     uint8     // Last key pressed, if waiting and set
-	lastKeyWait bool      // Waiting for a key?
-	lastKeySet  bool      // Key set while waiting?
+	memory      Memory        // Main memory (4KB)
+	v           Registers     // Register array (V0 to VF)
+	i           uint16        // Index register (12-bit)
+	stack       Stack         // Stack frames
+	sp          uint8         // Pointer to the next available stack frame
+	dt          uint8         // Delay timer
+	st          uint8         // Sound timer
+	pc          uint16        // Program counter (12-bit)
+	display     Display       // Display
+	key         uint8         // Currently pressed key, if any
+	keyDown     bool          // Is a key pressed?
+	lastKey     uint8         // Last key pressed, if waiting and set
+	lastKeyWait bool          // Waiting for a key?
+	lastKeySet  bool          // Key set while waiting?
+	rng         func() uint32 // Random number generator
 }
 
 func (e *Emulator) Memory(buffer []uint8) {
@@ -152,6 +154,13 @@ func (e *Emulator) KeyUp() {
 	defer e.mu.Unlock()
 
 	e.keyDown = false
+}
+
+func (e *Emulator) SetRNG(rng func() uint32) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.rng = rng
 }
 
 func (e *Emulator) Init() {
@@ -333,6 +342,20 @@ func (e *Emulator) Step() bool {
 	case 0xb000:
 		n := op & 0x0fff
 		e.pc = uint16(e.v[0]) + n
+	case 0xc000:
+		x := (op & 0x0f00) >> 8
+		n := op & 0x00ff
+
+		var r uint32
+
+		if e.rng != nil {
+			r = e.rng()
+		} else {
+			r = rand.Uint32()
+		}
+
+		e.v[x] = uint8(r) & uint8(n)
+		e.pc += 2
 	case 0xd000:
 		x := (op & 0x0f00) >> 8
 		y := (op & 0x00f0) >> 4
