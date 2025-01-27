@@ -433,6 +433,47 @@ func TestStoreBCD(t *testing.T) {
 		memory(0x302, 4)
 }
 
+func TestDraw(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x01
+		0x61, 0x02, // LD V1, 0x02
+		0xa2, 0x0a, // LD I, 0x20a
+		0xd0, 0x12, // DRW V0, V1, 0x02
+		0x00, 0x00, // HALT
+		0x80, // Bitmap, *.......
+		0x01, // Bitmap, .......*
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0x01, 0x02).
+		register(0x0f, 0x00).
+		index(0x20a).
+		display(1, 2, true).
+		display(8, 3, true)
+}
+
+func TestDrawCollision(t *testing.T) {
+	e := run(t,
+		0x60, 0x01, // LD V0, 0x01
+		0x61, 0x02, // LD V1, 0x02
+		0xa2, 0x0c, // LD I, 0x20c
+		0xd0, 0x12, // DRW V0, V1, 0x02
+		0xd0, 0x11, // DRW V0, V1, 0x01
+		0x00, 0x00, // HALT
+		0x80, // Bitmap, *.......
+		0x01, // Bitmap, .......*
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0x01, 0x02).
+		register(0x0f, 0x01).
+		index(0x20c).
+		display(1, 2, false).
+		display(8, 3, true)
+}
+
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	t.Helper()
 
@@ -479,6 +520,18 @@ func (c checks) memory(address uint16, want uint8) checks {
 
 	if got := c.e.Memory()[address]; got != want {
 		c.t.Fatalf("memory[%x]: got %#x, want %#x", address, got, want)
+	}
+
+	return c
+}
+
+func (c checks) display(x, y int, on bool) checks {
+	c.t.Helper()
+
+	if got := c.e.Pixel(x, y); on && got == 0 {
+		c.t.Fatalf("display[%d,%d]: pixel should be on, but it is off", x, y)
+	} else if !on && got != 0 {
+		c.t.Fatalf("display[%d,%d]: pixel should be off, but it is on", x, y)
 	}
 
 	return c

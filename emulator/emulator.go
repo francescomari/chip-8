@@ -19,15 +19,21 @@ var Fonts [80]uint8 = [80]uint8{
 	0xf0, 0x80, 0xf0, 0x80, 0x80, // F
 }
 
+const (
+	DisplayMaxX = 128
+	DisplayMaxY = 64
+)
+
 type Emulator struct {
-	memory [4096]uint8 // Main memory (4KB)
-	v      [16]uint8   // Register array (V0 to VF)
-	i      uint16      // Index register (12-bit)
-	stack  [16]uint16  // Stack frames
-	sp     uint8       // Pointer to the next available stack frame
-	dt     uint8       // Delaty timer
-	st     uint8       // Sound timer
-	pc     uint16      // Program counter (12-bit)
+	memory  [4096]uint8                     // Main memory (4KB)
+	v       [16]uint8                       // Register array (V0 to VF)
+	i       uint16                          // Index register (12-bit)
+	stack   [16]uint16                      // Stack frames
+	sp      uint8                           // Pointer to the next available stack frame
+	dt      uint8                           // Delaty timer
+	st      uint8                           // Sound timer
+	pc      uint16                          // Program counter (12-bit)
+	display [DisplayMaxX][DisplayMaxY]uint8 // Display
 }
 
 func (e *Emulator) Memory() []uint8 {
@@ -62,6 +68,10 @@ func (e *Emulator) PC() uint16 {
 	return e.pc
 }
 
+func (e *Emulator) Pixel(x, y int) uint8 {
+	return e.display[x][y]
+}
+
 func (e *Emulator) Init() {
 	for i := range len(e.memory) {
 		e.memory[i] = 0
@@ -75,6 +85,12 @@ func (e *Emulator) Init() {
 
 	for i := range len(e.stack) {
 		e.stack[i] = 0
+	}
+
+	for i := range DisplayMaxX {
+		for j := range DisplayMaxY {
+			e.display[i][j] = 0
+		}
 	}
 
 	e.i = 0
@@ -220,6 +236,34 @@ func (e *Emulator) Step() bool {
 	case 0xb000:
 		n := op & 0x0fff
 		e.pc = uint16(e.v[0]) + n
+	case 0xd000:
+		x := (op & 0x0f00) >> 8
+		y := (op & 0x00f0) >> 4
+		n := op & 0x000f
+
+		e.v[0xf] = 0
+
+		bx := e.v[x]
+		by := e.v[y]
+
+		for dy := range n {
+			sprite := e.memory[e.i+dy]
+
+			for dx := range 8 {
+				px := int(bx) + int(dx)
+				py := int(by) + int(dy)
+
+				if bit := sprite & (0x80 >> dx); bit != 0 {
+					if e.display[px][py] != 0 {
+						e.v[0xf] = 1
+					}
+
+					e.display[px][py] ^= 1
+				}
+			}
+		}
+
+		e.pc += 2
 	case 0xf000:
 		x := (op & 0x0f00) >> 8
 
