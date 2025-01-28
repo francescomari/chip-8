@@ -224,243 +224,412 @@ func (e *Emulator) Step() bool {
 	lo := uint16(e.memory[e.pc+1])
 	op := (hi << 8) | lo
 
+	// The opcode 0NNN jumps to a machine code routine at address NNN, but it is
+	// only used on the computers on which CHIP-8 was implemented. This
+	// interpreter implements an opcode of this form as a HALT instruction.
+
 	switch op & 0xf000 {
 	case 0x0000:
-		kind := (op & 0x00ff)
-
-		switch kind {
+		switch op & 0x00ff {
 		case 0x00e0:
-			for y := range e.display {
-				for x := range e.display[y] {
-					e.display[y][x] = 0
-				}
-			}
-
-			e.pc += 2
+			e.clearDisplay()
 		case 0x00ee:
-			e.sp--
-			e.pc = e.stack[e.sp]
-			e.pc += 2
+			e.functionReturn()
 		default:
-			// The opcode 0NNN jumps to a machine code routine at address NNN, but it
-			// is only used on the computers on which CHIP-8 was implemented. This
-			// interpreter implements an opcode of this form as a HALT instruction.
 			return false
 		}
 	case 0x1000:
-		e.pc = op & 0x0fff
+		e.jump(op)
 	case 0x2000:
-		e.stack[e.sp] = e.pc
-		e.sp++
-		e.pc = op & 0xfff
+		e.functionCall(op)
 	case 0x3000:
-		x := (op & 0x0f00) >> 8
-		n := uint8(op & 0x00ff)
-
-		if e.v[x] == n {
-			e.pc += 4
-		} else {
-			e.pc += 2
-		}
+		e.skipIfConstantEqual(op)
 	case 0x4000:
-		x := (op & 0x0f00) >> 8
-		n := uint8(op & 0x00ff)
-
-		if e.v[x] != n {
-			e.pc += 4
-		} else {
-			e.pc += 2
-		}
+		e.skipIfConstantNotEqual(op)
 	case 0x5000:
-		x := (op & 0x0f00) >> 8
-		y := (op & 0x00f0) >> 4
-
-		if e.v[x] == e.v[y] {
-			e.pc += 4
-		} else {
-			e.pc += 2
-		}
+		e.skipIfRegisterEqual(op)
 	case 0x6000:
-		x := (op & 0x0f00) >> 8
-		v := uint8(op & 0x00ff)
-		e.v[x] = v
-		e.pc += 2
+		e.loadRegisterFromConstant(op)
 	case 0x7000:
-		x := (op & 0x0f00) >> 8
-		v := uint8(op & 0x00ff)
-		e.v[x] += v
-		e.pc += 2
+		e.incrementRegister(op)
 	case 0x8000:
-		x := (op & 0x0f00) >> 8
-		y := (op & 0x00f0) >> 4
-
-		kind := op & 0x000f
-
-		switch kind {
+		switch op & 0x000f {
 		case 0x0000:
-			e.v[x] = e.v[y]
+			e.loadRegisterFromRegister(op)
 		case 0x0001:
-			e.v[x] |= e.v[y]
+			e.bitwiseOr(op)
 		case 0x0002:
-			e.v[x] &= e.v[y]
+			e.bitwiseAnd(op)
 		case 0x0003:
-			e.v[x] ^= e.v[y]
+			e.bitwiseXor(op)
 		case 0x0004:
-			if e.v[x] > 0xff-e.v[y] {
-				e.v[0xf] = 1
-			} else {
-				e.v[0xf] = 0
-			}
-			e.v[x] += e.v[y]
+			e.addWithCarry(op)
 		case 0x0005:
-			if e.v[x] >= e.v[y] {
-				e.v[0xf] = 1
-			} else {
-				e.v[0xf] = 0
-			}
-			e.v[x] -= e.v[y]
+			e.subtractRightWithBorrow(op)
 		case 0x0006:
-			e.v[0xf] = e.v[x] & 0x01
-			e.v[x] >>= 1
+			e.shiftRight(op)
 		case 0x0007:
-			if e.v[y] >= e.v[x] {
-				e.v[0xf] = 1
-			} else {
-				e.v[0xf] = 0
-			}
-			e.v[x] = e.v[y] - e.v[x]
+			e.subtractLeftWithBorrow(op)
 		case 0x000e:
-			e.v[0xf] = (e.v[x] & 0x80) >> 7
-			e.v[x] <<= 1
+			e.shiftLeft(op)
 		}
-
-		e.pc += 2
 	case 0x9000:
-		x := (op & 0x0f00) >> 8
-		y := (op & 0x00f0) >> 4
-
-		if e.v[x] != e.v[y] {
-			e.pc += 4
-		} else {
-			e.pc += 2
-		}
+		e.skipIfRegisterNotEqual(op)
 	case 0xa000:
-		n := op & 0x0fff
-		e.i = n
-		e.pc += 2
+		e.loadIndex(op)
 	case 0xb000:
-		n := op & 0x0fff
-		e.pc = uint16(e.v[0]) + n
+		e.jumpRelative(op)
 	case 0xc000:
-		x := (op & 0x0f00) >> 8
-		n := op & 0x00ff
-
-		var r uint32
-
-		if e.rng != nil {
-			r = e.rng()
-		} else {
-			r = rand.Uint32()
-		}
-
-		e.v[x] = uint8(r) & uint8(n)
-		e.pc += 2
+		e.generateRandomNumber(op)
 	case 0xd000:
-		x := (op & 0x0f00) >> 8
-		y := (op & 0x00f0) >> 4
-		n := op & 0x000f
-
-		e.v[0xf] = 0
-
-		bx := e.v[x]
-		by := e.v[y]
-
-		for dy := range n {
-			sprite := e.memory[e.i+dy]
-
-			for dx := range 8 {
-				px := int(bx) + int(dx)
-				py := int(by) + int(dy)
-
-				if bit := sprite & (0x80 >> dx); bit != 0 {
-					if e.display[py][px] != 0 {
-						e.v[0xf] = 1
-					}
-
-					e.display[py][px] ^= 1
-				}
-			}
-		}
-
-		e.pc += 2
+		e.draw(op)
 	case 0xe000:
-		x := (op & 0x0f00) >> 8
-
-		kind := op & 0x00ff
-
-		switch kind {
+		switch op & 0x00ff {
 		case 0x009e:
-			if e.keyDown && e.key == e.v[x] {
-				e.pc += 4
-			} else {
-				e.pc += 2
-			}
+			e.skipIfKeyPressed(op)
 		case 0x00a1:
-			if !e.keyDown || e.key != e.v[x] {
-				e.pc += 4
-			} else {
-				e.pc += 2
-			}
+			e.skipIfKeyNotPressed(op)
 		}
 	case 0xf000:
-		x := (op & 0x0f00) >> 8
-
-		kind := op & 0x00ff
-
-		switch kind {
+		switch op & 0x00ff {
 		case 0x0007:
-			e.v[x] = e.dt
-			e.pc += 2
+			e.loadRegisterFromDelayTimer(op)
 		case 0x0000a:
-			if e.lastKeyWait {
-				if e.lastKeySet {
-					e.v[x] = e.lastKey
-					e.lastKeyWait = false
-					e.lastKeySet = false
-					e.pc += 2
-				}
-			} else {
-				e.lastKeyWait = true
-			}
+			e.waitForKeyPress(op)
 		case 0x0015:
-			e.dt = e.v[x]
-			e.pc += 2
+			e.loadDelayTimer(op)
 		case 0x0018:
-			e.st = e.v[x]
-			e.pc += 2
+			e.loadSoundTimer(op)
 		case 0x001e:
-			e.i += uint16(e.v[x])
-			e.pc += 2
+			e.incrementIndex(op)
 		case 0x0029:
-			e.i = uint16(5 * e.v[x])
-			e.pc += 2
+			e.loadIndexFromSprite(op)
 		case 0x0033:
-			e.memory[e.i] = e.v[x] / 100
-			e.memory[e.i+1] = (e.v[x] % 100) / 10
-			e.memory[e.i+2] = e.v[x] % 10
-			e.pc += 2
+			e.loadMemoryFromBCD(op)
 		case 0x0055:
-			for n := range x + 1 {
-				e.memory[e.i+n] = e.v[n]
-			}
-			e.pc += 2
+			e.loadMemoryFromRegisters(op)
 		case 0x0065:
-			for n := range x + 1 {
-				e.v[n] = e.memory[e.i+n]
-			}
-			e.pc += 2
+			e.loadRegistersFromMemory(op)
 		}
 	}
 
 	return true
+}
+
+func (e *Emulator) clearDisplay() {
+	for y := range e.display {
+		for x := range e.display[y] {
+			e.display[y][x] = 0
+		}
+	}
+
+	e.pc += 2
+}
+
+func (e *Emulator) functionReturn() {
+	e.sp--
+	e.pc = e.stack[e.sp]
+	e.pc += 2
+}
+
+func (e *Emulator) jump(op uint16) {
+	e.pc = op & 0x0fff
+}
+
+func (e *Emulator) functionCall(op uint16) {
+	e.stack[e.sp] = e.pc
+	e.sp++
+	e.pc = op & 0xfff
+}
+
+func (e *Emulator) skipIfConstantEqual(op uint16) {
+	x := (op & 0x0f00) >> 8
+	n := uint8(op & 0x00ff)
+
+	if e.v[x] == n {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) skipIfConstantNotEqual(op uint16) {
+	x := (op & 0x0f00) >> 8
+	n := uint8(op & 0x00ff)
+
+	if e.v[x] != n {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) skipIfRegisterEqual(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	if e.v[x] == e.v[y] {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) loadRegisterFromConstant(op uint16) {
+	x := (op & 0x0f00) >> 8
+	v := uint8(op & 0x00ff)
+	e.v[x] = v
+	e.pc += 2
+}
+
+func (e *Emulator) incrementRegister(op uint16) {
+	x := (op & 0x0f00) >> 8
+	v := uint8(op & 0x00ff)
+	e.v[x] += v
+	e.pc += 2
+}
+
+func (e *Emulator) loadRegisterFromRegister(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+	e.v[x] = e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) bitwiseOr(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+	e.v[x] |= e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) bitwiseAnd(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+	e.v[x] &= e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) bitwiseXor(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+	e.v[x] ^= e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) addWithCarry(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	if e.v[x] > 0xff-e.v[y] {
+		e.v[0xf] = 1
+	} else {
+		e.v[0xf] = 0
+	}
+
+	e.v[x] += e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) subtractRightWithBorrow(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	if e.v[x] >= e.v[y] {
+		e.v[0xf] = 1
+	} else {
+		e.v[0xf] = 0
+	}
+
+	e.v[x] -= e.v[y]
+	e.pc += 2
+}
+
+func (e *Emulator) subtractLeftWithBorrow(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	if e.v[y] >= e.v[x] {
+		e.v[0xf] = 1
+	} else {
+		e.v[0xf] = 0
+	}
+
+	e.v[x] = e.v[y] - e.v[x]
+	e.pc += 2
+}
+
+func (e *Emulator) shiftRight(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.v[0xf] = e.v[x] & 0x01
+	e.v[x] >>= 1
+	e.pc += 2
+}
+
+func (e *Emulator) shiftLeft(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.v[0xf] = (e.v[x] & 0x80) >> 7
+	e.v[x] <<= 1
+	e.pc += 2
+}
+
+func (e *Emulator) skipIfRegisterNotEqual(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	if e.v[x] != e.v[y] {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) loadIndex(op uint16) {
+	n := op & 0x0fff
+	e.i = n
+	e.pc += 2
+}
+
+func (e *Emulator) jumpRelative(op uint16) {
+	n := op & 0x0fff
+	e.pc = uint16(e.v[0]) + n
+}
+
+func (e *Emulator) generateRandomNumber(op uint16) {
+	x := (op & 0x0f00) >> 8
+	n := op & 0x00ff
+
+	var r uint32
+
+	if e.rng != nil {
+		r = e.rng()
+	} else {
+		r = rand.Uint32()
+	}
+
+	e.v[x] = uint8(r) & uint8(n)
+	e.pc += 2
+}
+
+func (e *Emulator) draw(op uint16) {
+	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+	n := op & 0x000f
+
+	e.v[0xf] = 0
+
+	bx := e.v[x]
+	by := e.v[y]
+
+	for dy := range n {
+		sprite := e.memory[e.i+dy]
+
+		for dx := range 8 {
+			px := int(bx) + int(dx)
+			py := int(by) + int(dy)
+
+			if bit := sprite & (0x80 >> dx); bit != 0 {
+				if e.display[py][px] != 0 {
+					e.v[0xf] = 1
+				}
+
+				e.display[py][px] ^= 1
+			}
+		}
+	}
+
+	e.pc += 2
+}
+
+func (e *Emulator) skipIfKeyPressed(op uint16) {
+	x := (op & 0x0f00) >> 8
+
+	if e.keyDown && e.key == e.v[x] {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) skipIfKeyNotPressed(op uint16) {
+	x := (op & 0x0f00) >> 8
+
+	if !e.keyDown || e.key != e.v[x] {
+		e.pc += 4
+	} else {
+		e.pc += 2
+	}
+}
+
+func (e *Emulator) loadRegisterFromDelayTimer(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.v[x] = e.dt
+	e.pc += 2
+}
+
+func (e *Emulator) waitForKeyPress(op uint16) {
+	x := (op & 0x0f00) >> 8
+
+	if e.lastKeyWait {
+		if e.lastKeySet {
+			e.v[x] = e.lastKey
+			e.lastKeyWait = false
+			e.lastKeySet = false
+			e.pc += 2
+		}
+	} else {
+		e.lastKeyWait = true
+	}
+}
+
+func (e *Emulator) loadDelayTimer(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.dt = e.v[x]
+	e.pc += 2
+}
+
+func (e *Emulator) loadSoundTimer(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.st = e.v[x]
+	e.pc += 2
+}
+
+func (e *Emulator) incrementIndex(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.i += uint16(e.v[x])
+	e.pc += 2
+}
+
+func (e *Emulator) loadIndexFromSprite(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.i = uint16(5 * e.v[x])
+	e.pc += 2
+}
+
+func (e *Emulator) loadMemoryFromBCD(op uint16) {
+	x := (op & 0x0f00) >> 8
+	e.memory[e.i] = e.v[x] / 100
+	e.memory[e.i+1] = (e.v[x] % 100) / 10
+	e.memory[e.i+2] = e.v[x] % 10
+	e.pc += 2
+}
+
+func (e *Emulator) loadMemoryFromRegisters(op uint16) {
+	x := (op & 0x0f00) >> 8
+
+	for n := range x + 1 {
+		e.memory[e.i+n] = e.v[n]
+	}
+
+	e.pc += 2
+}
+
+func (e *Emulator) loadRegistersFromMemory(op uint16) {
+	x := (op & 0x0f00) >> 8
+
+	for n := range x + 1 {
+		e.v[n] = e.memory[e.i+n]
+	}
+
+	e.pc += 2
 }
