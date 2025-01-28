@@ -577,7 +577,10 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 	e := emulator.New()
 
 	e.Load(data)
-	e.Run()
+
+	for e.Step() {
+		// Run next instruction.
+	}
 
 	return e
 }
@@ -613,6 +616,7 @@ func TestSkipOnKeyDown(t *testing.T) {
 	e := emulator.New()
 
 	e.KeyDown(0xf)
+
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
 		0xe0, 0x9e, // SKP V0
@@ -621,7 +625,10 @@ func TestSkipOnKeyDown(t *testing.T) {
 		0xe0, 0x9e, // SKP V0
 		0x62, 0x01, // LD V2, 0x02
 	})
-	e.Run()
+
+	for e.Step() {
+		// Run next instruction.
+	}
 
 	check(t, e).
 		register(0x1, 0x00).
@@ -632,6 +639,7 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 	e := emulator.New()
 
 	e.KeyDown(0xf)
+
 	e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
 		0xe0, 0xa1, // SKPN V0
@@ -640,7 +648,10 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 		0xe0, 0xa1, // SKPN V0
 		0x62, 0x01, // LD V2, 0x02
 	})
-	e.Run()
+
+	for e.Step() {
+		// Run next instruction.
+	}
 
 	check(t, e).
 		register(0x1, 0x01).
@@ -703,7 +714,9 @@ func TestRandom(t *testing.T) {
 		0xc0, 0x0f, // RND V0, 0xff
 	})
 
-	e.Run()
+	for e.Step() {
+		// Run next instruction.
+	}
 
 	check(t, e).
 		register(0x0, 0x08)

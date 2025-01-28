@@ -163,12 +163,6 @@ func (e *Emulator) Load(program []uint8) {
 	copy(e.memory[0x200:], program)
 }
 
-func (e *Emulator) Run() {
-	for e.Step() {
-		// Run the next instruction.
-	}
-}
-
 func (e *Emulator) Step() bool {
 	hi := uint16(e.memory[e.pc])
 	lo := uint16(e.memory[e.pc+1])
