@@ -635,7 +635,8 @@ func (e *Emulator) loadMemoryFromRegisters(op uint16) {
 	x := (op & 0x0f00) >> 8
 
 	for n := range x + 1 {
-		e.memory[e.i+n] = e.v[n]
+		e.memory[e.i] = e.v[n]
+		e.i++
 	}
 
 	e.pc += 2
@@ -645,7 +646,8 @@ func (e *Emulator) loadRegistersFromMemory(op uint16) {
 	x := (op & 0x0f00) >> 8
 
 	for n := range x + 1 {
-		e.v[n] = e.memory[e.i+n]
+		e.v[n] = e.memory[e.i]
+		e.i++
 	}
 
 	e.pc += 2
