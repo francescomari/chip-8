@@ -339,6 +339,16 @@ func TestShiftLeftCarry(t *testing.T) {
 		register(0xf, 0x01)
 }
 
+func TestShiftLeftCarryRegister(t *testing.T) {
+	e := run(t,
+		0x6f, 0xf0, // LD V0, 0xc0
+		0x8f, 0x0e, // SHL V0
+	)
+
+	check(t, e).
+		register(0xf, 0x01)
+}
+
 func TestSkipIfEqual(t *testing.T) {
 	e := run(t,
 		0x30, 0x00, // SE V0, 0
