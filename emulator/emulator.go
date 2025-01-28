@@ -1,6 +1,7 @@
 package emulator
 
 import (
+	"fmt"
 	"math/rand/v2"
 )
 
@@ -179,8 +180,10 @@ func (e *Emulator) Step() bool {
 			e.clearDisplay()
 		case 0x00ee:
 			e.functionReturn()
-		default:
+		case 0x0000:
 			return false
+		default:
+			panic(fmt.Sprintf("invalid opcode: %x", op))
 		}
 	case 0x1000:
 		e.jump(op)
@@ -216,6 +219,8 @@ func (e *Emulator) Step() bool {
 			e.subtractLeftWithBorrow(op)
 		case 0x000e:
 			e.shiftLeft(op)
+		default:
+			panic(fmt.Sprintf("invalid opcode: %x", op))
 		}
 	case 0x9000:
 		e.skipIfRegisterNotEqual(op)
@@ -233,6 +238,8 @@ func (e *Emulator) Step() bool {
 			e.skipIfKeyPressed(op)
 		case 0x00a1:
 			e.skipIfKeyNotPressed(op)
+		default:
+			panic(fmt.Sprintf("invalid opcode: %x", op))
 		}
 	case 0xf000:
 		switch op & 0x00ff {
@@ -254,6 +261,8 @@ func (e *Emulator) Step() bool {
 			e.loadMemoryFromRegisters(op)
 		case 0x0065:
 			e.loadRegistersFromMemory(op)
+		default:
+			panic(fmt.Sprintf("invalid opcode: %x", op))
 		}
 	}
 
