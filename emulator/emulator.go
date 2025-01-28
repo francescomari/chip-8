@@ -440,8 +440,21 @@ func (e *Emulator) subtractLeftWithBorrow(op uint16) {
 
 func (e *Emulator) shiftRight(op uint16) {
 	x := (op & 0x0f00) >> 8
-	e.v[0xf] = e.v[x] & 0x01
+
+	var carry bool
+
+	if e.v[x]&0x01 != 0 {
+		carry = true
+	}
+
 	e.v[x] >>= 1
+
+	if carry {
+		e.v[0xf] = 1
+	} else {
+		e.v[0xf] = 0
+	}
+
 	e.pc += 2
 }
 

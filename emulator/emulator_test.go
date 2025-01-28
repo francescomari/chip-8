@@ -269,6 +269,16 @@ func TestShiftRightCarry(t *testing.T) {
 		register(0xf, 0x01)
 }
 
+func TestShiftRightCarryRegister(t *testing.T) {
+	e := run(t,
+		0x6f, 0x07, // LD VF, 0x07
+		0x8f, 0x06, // SHR V0
+	)
+
+	check(t, e).
+		register(0xf, 0x01)
+}
+
 func TestSubn(t *testing.T) {
 	e := run(t,
 		0x60, 0x03, // LD V0, 0x03
