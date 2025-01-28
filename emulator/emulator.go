@@ -24,11 +24,16 @@ var fonts [80]uint8 = [80]uint8{
 	0xf0, 0x80, 0xf0, 0x80, 0x80, // F
 }
 
+const (
+	DisplayWidth  = 64
+	DisplayHeight = 32
+)
+
 type (
 	Memory    [4096]uint8
 	Registers [16]uint8
 	Stack     [16]uint16
-	Display   [64][128]uint8
+	Display   [DisplayHeight][DisplayWidth]uint8
 )
 
 type Emulator struct {
