@@ -116,6 +116,20 @@ func TestBitwiseOr(t *testing.T) {
 		register(0x1, 0xff)
 }
 
+func TestBitwiseOrFlagQuirk(t *testing.T) {
+	e := run(t,
+		0x60, 0xf0, // LD V0, 0xf0
+		0x61, 0x0f, // LD V1, 0x0f
+		0x6f, 0xff, // LD VF, 0xff
+		0x81, 0x01, // OR V1, V0
+	)
+
+	check(t, e).
+		register(0x0, 0xf0).
+		register(0x1, 0xff).
+		register(0xf, 0x00)
+}
+
 func TestBitwiseAnd(t *testing.T) {
 	e := run(t,
 		0x60, 0xf0, // LD V0, 0xf0
@@ -128,6 +142,20 @@ func TestBitwiseAnd(t *testing.T) {
 		register(0x1, 0x00)
 }
 
+func TestBitwiseAndFlagQuirk(t *testing.T) {
+	e := run(t,
+		0x60, 0xf0, // LD V0, 0xf0
+		0x61, 0x0f, // LD V1, 0x0f
+		0x6f, 0xff, // LD VF, 0xff
+		0x81, 0x02, // AND V1, V0
+	)
+
+	check(t, e).
+		register(0x0, 0xf0).
+		register(0x1, 0x00).
+		register(0xf, 0x00)
+}
+
 func TestBitwiseXor(t *testing.T) {
 	e := run(t,
 		0x60, 0xf0, // LD V0, 0xf0
@@ -138,6 +166,20 @@ func TestBitwiseXor(t *testing.T) {
 	check(t, e).
 		register(0x0, 0xf0).
 		register(0x1, 0xff)
+}
+
+func TestBitwiseXorFlagQuirk(t *testing.T) {
+	e := run(t,
+		0x60, 0xf0, // LD V0, 0xf0
+		0x61, 0x0f, // LD V1, 0x0f
+		0x6f, 0xff, // LD VF, 0xff
+		0x81, 0x03, // XOR V1, V0
+	)
+
+	check(t, e).
+		register(0x0, 0xf0).
+		register(0x1, 0xff).
+		register(0xf, 0x00)
 }
 
 func TestAdd(t *testing.T) {

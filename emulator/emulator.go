@@ -358,6 +358,7 @@ func (e *Emulator) bitwiseOr(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 	e.v[x] |= e.v[y]
+	e.v[0xf] = 0
 	e.pc += 2
 }
 
@@ -365,6 +366,7 @@ func (e *Emulator) bitwiseAnd(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 	e.v[x] &= e.v[y]
+	e.v[0xf] = 0
 	e.pc += 2
 }
 
@@ -372,6 +374,7 @@ func (e *Emulator) bitwiseXor(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 	e.v[x] ^= e.v[y]
+	e.v[0xf] = 0
 	e.pc += 2
 }
 
