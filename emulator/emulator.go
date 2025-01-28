@@ -443,6 +443,9 @@ func (e *Emulator) subtractLeftWithBorrow(op uint16) {
 
 func (e *Emulator) shiftRight(op uint16) {
 	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	e.v[x] = e.v[y]
 
 	var carry bool
 
@@ -463,6 +466,9 @@ func (e *Emulator) shiftRight(op uint16) {
 
 func (e *Emulator) shiftLeft(op uint16) {
 	x := (op & 0x0f00) >> 8
+	y := (op & 0x00f0) >> 4
+
+	e.v[x] = e.v[y]
 
 	var carry bool
 

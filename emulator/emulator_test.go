@@ -313,7 +313,7 @@ func TestShiftRightCarry(t *testing.T) {
 
 func TestShiftRightCarryRegister(t *testing.T) {
 	e := run(t,
-		0x6f, 0x07, // LD VF, 0x07
+		0x60, 0x07, // LD V0, 0x07
 		0x8f, 0x06, // SHR V0
 	)
 
@@ -383,7 +383,7 @@ func TestShiftLeftCarry(t *testing.T) {
 
 func TestShiftLeftCarryRegister(t *testing.T) {
 	e := run(t,
-		0x6f, 0xf0, // LD V0, 0xc0
+		0x60, 0xf0, // LD V0, 0xc0
 		0x8f, 0x0e, // SHL V0
 	)
 
