@@ -421,13 +421,20 @@ func (e *Emulator) subtractLeftWithBorrow(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 
+	var noBorrow bool
+
 	if e.v[y] >= e.v[x] {
+		noBorrow = true
+	}
+
+	e.v[x] = e.v[y] - e.v[x]
+
+	if noBorrow {
 		e.v[0xf] = 1
 	} else {
 		e.v[0xf] = 0
 	}
 
-	e.v[x] = e.v[y] - e.v[x]
 	e.pc += 2
 }
 
