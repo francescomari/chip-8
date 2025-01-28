@@ -180,6 +180,21 @@ func TestAddOverflowClear(t *testing.T) {
 		register(0xf, 0x00)
 }
 
+func TestAddOverflowRegister(t *testing.T) {
+	// VF should be set after the result of the addition is saved in the X
+	// register. Otherwise, when Y is VF, VF is modified before the additional
+	// takes places.
+
+	e := run(t,
+		0x6f, 0x01, // LD VF, 0x01
+		0x80, 0xf4, // ADD V0, VF
+	)
+
+	check(t, e).
+		register(0x0, 0x01).
+		register(0xf, 0x00)
+}
+
 func TestSub(t *testing.T) {
 	e := run(t,
 		0x60, 0x01, // LD V0, 0x01

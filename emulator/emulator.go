@@ -379,13 +379,20 @@ func (e *Emulator) addWithCarry(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 
+	var carry bool
+
 	if e.v[x] > 0xff-e.v[y] {
+		carry = true
+	}
+
+	e.v[x] += e.v[y]
+
+	if carry {
 		e.v[0xf] = 1
 	} else {
 		e.v[0xf] = 0
 	}
 
-	e.v[x] += e.v[y]
 	e.pc += 2
 }
 
