@@ -400,13 +400,20 @@ func (e *Emulator) subtractRightWithBorrow(op uint16) {
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 
+	var noBorrow bool
+
 	if e.v[x] >= e.v[y] {
+		noBorrow = true
+	}
+
+	e.v[x] -= e.v[y]
+
+	if noBorrow {
 		e.v[0xf] = 1
 	} else {
 		e.v[0xf] = 0
 	}
 
-	e.v[x] -= e.v[y]
 	e.pc += 2
 }
 

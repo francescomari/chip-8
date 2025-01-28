@@ -235,6 +235,18 @@ func TestSubUnderflowClear(t *testing.T) {
 		register(0xf, 0x01)
 }
 
+func TestSubUnderflowRegister(t *testing.T) {
+	e := run(t,
+		0x60, 0x05, // LD V0, 0x05
+		0x6f, 0x02, // LD VF, 0x02
+		0x80, 0xf5, // SUB V0, VF
+	)
+
+	check(t, e).
+		register(0x0, 0x3).
+		register(0xf, 0x1)
+}
+
 func TestShiftRight(t *testing.T) {
 	e := run(t,
 		0x60, 0x02, // LD V0, 0x02
