@@ -2,7 +2,6 @@ package emulator
 
 import (
 	"math/rand/v2"
-	"sync"
 )
 
 var fonts [80]uint8 = [80]uint8{
@@ -32,7 +31,6 @@ type (
 )
 
 type Emulator struct {
-	mu          sync.RWMutex
 	memory      Memory        // Main memory (4KB)
 	v           Registers     // Register array (V0 to VF)
 	i           uint16        // Index register (12-bit)
@@ -57,16 +55,10 @@ func New() *Emulator {
 }
 
 func (e *Emulator) Memory(buffer []uint8) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	copy(buffer, e.memory[:])
 }
 
 func (e *Emulator) V(buffer []uint8) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	copy(buffer, e.v[:])
 }
 
@@ -75,46 +67,28 @@ func (e *Emulator) I() uint16 {
 }
 
 func (e *Emulator) Stack(buffer []uint16) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	copy(buffer, e.stack[:])
 }
 
 func (e *Emulator) SP() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	return e.sp
 }
 
 func (e *Emulator) DT() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	return e.dt
 }
 
 func (e *Emulator) DTClock() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	if e.dt != 0 {
 		e.dt--
 	}
 }
 
 func (e *Emulator) ST() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	return e.st
 }
 
 func (e *Emulator) STClock() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	if e.st == 0 {
 		return false
 	}
@@ -125,16 +99,10 @@ func (e *Emulator) STClock() bool {
 }
 
 func (e *Emulator) PC() uint16 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	return e.pc
 }
 
 func (e *Emulator) Display(buffer *Display) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
 	for y := range buffer {
 		for x := range buffer[y] {
 			buffer[y][x] = e.display[y][x]
@@ -143,9 +111,6 @@ func (e *Emulator) Display(buffer *Display) {
 }
 
 func (e *Emulator) KeyDown(key uint8) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.keyDown = true
 	e.key = key
 
@@ -156,23 +121,14 @@ func (e *Emulator) KeyDown(key uint8) {
 }
 
 func (e *Emulator) KeyUp() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.keyDown = false
 }
 
 func (e *Emulator) SetRNG(rng func() uint32) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.rng = rng
 }
 
 func (e *Emulator) Reset() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	for i := range len(e.memory) {
 		e.memory[i] = 0
 	}
@@ -204,9 +160,6 @@ func (e *Emulator) Reset() {
 }
 
 func (e *Emulator) Load(program []uint8) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	copy(e.memory[0x200:], program)
 }
 
@@ -217,9 +170,6 @@ func (e *Emulator) Run() {
 }
 
 func (e *Emulator) Step() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	hi := uint16(e.memory[e.pc])
 	lo := uint16(e.memory[e.pc+1])
 	op := (hi << 8) | lo
