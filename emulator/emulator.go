@@ -483,15 +483,24 @@ func (e *Emulator) draw(op uint16) {
 
 	e.v[0xf] = 0
 
-	bx := e.v[x]
-	by := e.v[y]
+	bx := e.v[x] % DisplayWidth
+	by := e.v[y] % DisplayHeight
 
 	for dy := range n {
 		sprite := e.memory[e.i+dy]
 
+		py := int(by) + int(dy)
+
+		if py >= DisplayHeight {
+			break
+		}
+
 		for dx := range 8 {
 			px := int(bx) + int(dx)
-			py := int(by) + int(dy)
+
+			if px >= DisplayWidth {
+				break
+			}
 
 			if bit := sprite & (0x80 >> dx); bit != 0 {
 				if e.display[py][px] != 0 {
