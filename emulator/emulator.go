@@ -35,25 +35,24 @@ type (
 	Registers [16]uint8
 	Stack     [16]uint16
 	Display   [DisplayHeight][DisplayWidth]uint8
+	Keys      [16]bool
 )
 
 type Emulator struct {
-	memory      Memory        // Main memory (4KB)
-	v           Registers     // Register array (V0 to VF)
-	i           uint16        // Index register (12-bit)
-	stack       Stack         // Stack frames
-	sp          uint8         // Pointer to the next available stack frame
-	dt          uint8         // Delay timer
-	st          uint8         // Sound timer
-	pc          uint16        // Program counter (12-bit)
-	display     Display       // Display
-	key         uint8         // Currently pressed key, if any
-	keyDown     bool          // Is a key pressed?
-	lastKey     uint8         // Last key pressed, if waiting and set
-	lastKeyWait bool          // Waiting for a key?
-	lastKeySet  bool          // Key set while waiting?
-	rng         func() uint32 // Random number generator
-	drawx       time.Time     // The time after which the next draw is allowed
+	memory          Memory        // Main memory (4KB)
+	v               Registers     // Register array (V0 to VF)
+	i               uint16        // Index register (12-bit)
+	stack           Stack         // Stack frames
+	sp              uint8         // Pointer to the next available stack frame
+	dt              uint8         // Delay timer
+	st              uint8         // Sound timer
+	pc              uint16        // Program counter (12-bit)
+	display         Display       // Display
+	keys            Keys          // Currently pressed keys
+	waitKey         bool          // Waiting for a key press?
+	waitKeyRegister uint8         // Where to store the pressed key, if waiting
+	rng             func() uint32 // Random number generator
+	drawx           time.Time     // The time after which the next draw is allowed
 }
 
 func New() *Emulator {
@@ -114,18 +113,24 @@ func (e *Emulator) Display(buffer *Display) {
 	*buffer = e.display
 }
 
-func (e *Emulator) KeyDown(key uint8) {
-	e.keyDown = true
-	e.key = key
+func (e *Emulator) Keys(keys *Keys) {
+	*keys = e.keys
+}
 
-	if e.lastKeyWait && !e.lastKeySet {
-		e.lastKey = key
-		e.lastKeySet = true
+func (e *Emulator) KeyDown(key uint8) {
+	key = key & 0xf
+	e.keys[key] = true
+
+	if e.waitKey {
+		e.v[e.waitKeyRegister] = key
+		e.waitKey = false
+		e.pc += 2
 	}
 }
 
-func (e *Emulator) KeyUp() {
-	e.keyDown = false
+func (e *Emulator) KeyUp(key uint8) {
+	key = key & 0xf
+	e.keys[key] = false
 }
 
 func (e *Emulator) SetRNG(rng func() uint32) {
@@ -148,15 +153,14 @@ func (e *Emulator) Reset() {
 	}
 
 	e.display = Display{}
+	e.keys = Keys{}
 
 	e.i = 0
 	e.sp = 0
 	e.dt = 0
 	e.st = 0
 	e.pc = 0x200
-	e.keyDown = false
-	e.lastKeyWait = false
-	e.lastKeySet = false
+	e.waitKey = false
 }
 
 func (e *Emulator) Load(program []uint8) {
@@ -567,8 +571,9 @@ func (e *Emulator) draw(op uint16) {
 
 func (e *Emulator) skipIfKeyPressed(op uint16) {
 	x := (op & 0x0f00) >> 8
+	k := e.v[x] & 0xf
 
-	if e.keyDown && e.key == e.v[x] {
+	if e.keys[k] {
 		e.pc += 4
 	} else {
 		e.pc += 2
@@ -577,11 +582,12 @@ func (e *Emulator) skipIfKeyPressed(op uint16) {
 
 func (e *Emulator) skipIfKeyNotPressed(op uint16) {
 	x := (op & 0x0f00) >> 8
+	k := e.v[x] & 0xf
 
-	if !e.keyDown || e.key != e.v[x] {
-		e.pc += 4
-	} else {
+	if e.keys[k] {
 		e.pc += 2
+	} else {
+		e.pc += 4
 	}
 }
 
@@ -593,17 +599,8 @@ func (e *Emulator) loadRegisterFromDelayTimer(op uint16) {
 
 func (e *Emulator) waitForKeyPress(op uint16) {
 	x := (op & 0x0f00) >> 8
-
-	if e.lastKeyWait {
-		if e.lastKeySet {
-			e.v[x] = e.lastKey
-			e.lastKeyWait = false
-			e.lastKeySet = false
-			e.pc += 2
-		}
-	} else {
-		e.lastKeyWait = true
-	}
+	e.waitKey = true
+	e.waitKeyRegister = uint8(x)
 }
 
 func (e *Emulator) loadDelayTimer(op uint16) {

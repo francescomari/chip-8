@@ -788,14 +788,10 @@ func TestWaitKeyPress(t *testing.T) {
 	check(t, e).
 		register(0x0, 0x00)
 
-	e.KeyDown(0x0f)
-	e.KeyUp()
-	e.KeyDown(0x01)
-	e.KeyUp()
-
-	if ok := e.Step(); !ok {
-		t.Fatal("should continue")
-	}
+	e.KeyDown(0xf)
+	e.KeyUp(0xf)
+	e.KeyDown(0x1)
+	e.KeyUp(0x1)
 
 	check(t, e).
 		register(0x0, 0x0f)
