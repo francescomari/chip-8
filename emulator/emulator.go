@@ -111,11 +111,7 @@ func (e *Emulator) PC() uint16 {
 }
 
 func (e *Emulator) Display(buffer *Display) {
-	for y := range buffer {
-		for x := range buffer[y] {
-			buffer[y][x] = e.display[y][x]
-		}
-	}
+	*buffer = e.display
 }
 
 func (e *Emulator) KeyDown(key uint8) {
@@ -151,11 +147,7 @@ func (e *Emulator) Reset() {
 		e.stack[i] = 0
 	}
 
-	for y := range e.display {
-		for x := range e.display[y] {
-			e.display[y][x] = 0
-		}
-	}
+	e.display = Display{}
 
 	e.i = 0
 	e.sp = 0
@@ -277,12 +269,7 @@ func (e *Emulator) Step() bool {
 }
 
 func (e *Emulator) clearDisplay() {
-	for y := range e.display {
-		for x := range e.display[y] {
-			e.display[y][x] = 0
-		}
-	}
-
+	e.display = Display{}
 	e.pc += 2
 }
 
