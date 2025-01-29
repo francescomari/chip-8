@@ -52,7 +52,7 @@ type Emulator struct {
 	waitKey         bool          // Waiting for a key press?
 	waitKeyRegister uint8         // Where to store the pressed key, if waiting
 	rng             func() uint32 // Random number generator
-	drawx           time.Time     // The time after which the next draw is allowed
+	nextDraw        time.Time     // The time after which the next draw is allowed
 }
 
 func New() *Emulator {
@@ -138,22 +138,13 @@ func (e *Emulator) SetRNG(rng func() uint32) {
 }
 
 func (e *Emulator) Reset() {
-	for i := range len(e.memory) {
-		e.memory[i] = 0
-	}
-
-	copy(e.memory[:], fonts[:])
-
-	for i := range len(e.v) {
-		e.v[i] = 0
-	}
-
-	for i := range len(e.stack) {
-		e.stack[i] = 0
-	}
-
+	e.memory = Memory{}
+	e.v = Registers{}
+	e.stack = Stack{}
 	e.display = Display{}
 	e.keys = Keys{}
+
+	copy(e.memory[:], fonts[:])
 
 	e.i = 0
 	e.sp = 0
@@ -161,6 +152,7 @@ func (e *Emulator) Reset() {
 	e.st = 0
 	e.pc = 0x200
 	e.waitKey = false
+	e.nextDraw = time.Time{}
 }
 
 func (e *Emulator) Load(program []uint8) {
@@ -519,13 +511,13 @@ func (e *Emulator) generateRandomNumber(op uint16) {
 }
 
 func (e *Emulator) throttleDraw() {
-	if e.drawx.IsZero() {
+	if e.nextDraw.IsZero() {
 		time.Sleep(time.Second / 60)
-	} else if time.Now().Before(e.drawx) {
-		time.Sleep(e.drawx.Sub(time.Now()))
+	} else if time.Now().Before(e.nextDraw) {
+		time.Sleep(e.nextDraw.Sub(time.Now()))
 	}
 
-	e.drawx = time.Now().Add(time.Second / 60)
+	e.nextDraw = time.Now().Add(time.Second / 60)
 }
 
 func (e *Emulator) draw(op uint16) {
