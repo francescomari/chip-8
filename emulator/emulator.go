@@ -3,6 +3,7 @@ package emulator
 import (
 	"fmt"
 	"math/rand/v2"
+	"time"
 )
 
 var fonts [80]uint8 = [80]uint8{
@@ -52,6 +53,7 @@ type Emulator struct {
 	lastKeyWait bool          // Waiting for a key?
 	lastKeySet  bool          // Key set while waiting?
 	rng         func() uint32 // Random number generator
+	drawx       time.Time     // The time after which the next draw is allowed
 }
 
 func New() *Emulator {
@@ -525,7 +527,19 @@ func (e *Emulator) generateRandomNumber(op uint16) {
 	e.pc += 2
 }
 
+func (e *Emulator) throttleDraw() {
+	if e.drawx.IsZero() {
+		time.Sleep(time.Second / 60)
+	} else if time.Now().Before(e.drawx) {
+		time.Sleep(e.drawx.Sub(time.Now()))
+	}
+
+	e.drawx = time.Now().Add(time.Second / 60)
+}
+
 func (e *Emulator) draw(op uint16) {
+	e.throttleDraw()
+
 	x := (op & 0x0f00) >> 8
 	y := (op & 0x00f0) >> 4
 	n := op & 0x000f
