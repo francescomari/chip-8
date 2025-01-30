@@ -53,6 +53,7 @@ type Emulator struct {
 	waitKeyRegister uint8         // Where to store the pressed key, if waiting
 	rng             func() uint32 // Random number generator
 	nextDraw        time.Time     // The time after which the next draw is allowed
+	nextDelay       time.Time     // The time where the delay timer will be next decremented
 }
 
 func New() *Emulator {
@@ -83,12 +84,6 @@ func (e *Emulator) SP() uint8 {
 
 func (e *Emulator) DT() uint8 {
 	return e.dt
-}
-
-func (e *Emulator) DTClock() {
-	if e.dt != 0 {
-		e.dt--
-	}
 }
 
 func (e *Emulator) ST() uint8 {
@@ -258,6 +253,20 @@ func (e *Emulator) Step() bool {
 			e.loadRegistersFromMemory(op)
 		default:
 			panic(fmt.Sprintf("invalid opcode: %x", op))
+		}
+	}
+
+	if e.dt > 0 {
+		if e.nextDelay.IsZero() {
+			e.nextDelay = time.Now().Add(time.Second / 60)
+		} else {
+			if e.nextDelay.Before(time.Now()) {
+				e.dt--
+				e.nextDelay = time.Now().Add(time.Second / 60)
+			}
+			if e.dt == 0 {
+				e.nextDelay = time.Time{}
+			}
 		}
 	}
 

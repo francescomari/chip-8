@@ -689,28 +689,16 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 
 func TestDelayTimer(t *testing.T) {
 	e := run(t,
-		0x60, 0x01, // LD V0, 0x02
+		0x60, 0x0f, // LD V0, 0x0f
 		0xf0, 0x15, // LD DT, V0
 		0xf1, 0x07, // LD V1, DT
+		0x31, 0x00, // SE V1, 0x00
+		0x12, 0x04, // JP 0x204
 	)
 
 	check(t, e).
-		register(0x0, 0x01).
-		register(0x1, 0x01).
-		delayTimer(0x01)
-
-	// Clocking the timer should decrement it.
-
-	e.DTClock()
-
-	check(t, e).
-		delayTimer(0x00)
-
-	// Clocking the timer should not decremnt it below zero.
-
-	e.DTClock()
-
-	check(t, e).
+		register(0x0, 0x0f).
+		register(0x1, 0x00).
 		delayTimer(0x00)
 }
 
