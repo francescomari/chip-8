@@ -53,7 +53,9 @@ type Emulator struct {
 	waitKeyRegister uint8         // Where to store the pressed key, if waiting
 	rng             func() uint32 // Random number generator
 	nextDraw        time.Time     // The time after which the next draw is allowed
-	nextDelay       time.Time     // The time where the delay timer will be next decremented
+	nextDelay       time.Time     // When the delay timer will be decremented, if set
+	nextSound       time.Time     // When the sound timer will be decremented, if set
+	sound           func()        // Callback called when the sound timer
 }
 
 func New() *Emulator {
@@ -90,16 +92,6 @@ func (e *Emulator) ST() uint8 {
 	return e.st
 }
 
-func (e *Emulator) STClock() bool {
-	if e.st == 0 {
-		return false
-	}
-
-	e.st--
-
-	return e.st == 0
-}
-
 func (e *Emulator) PC() uint16 {
 	return e.pc
 }
@@ -132,6 +124,10 @@ func (e *Emulator) SetRNG(rng func() uint32) {
 	e.rng = rng
 }
 
+func (e *Emulator) SetSound(sound func()) {
+	e.sound = sound
+}
+
 func (e *Emulator) Reset() {
 	e.memory = Memory{}
 	e.v = Registers{}
@@ -148,6 +144,8 @@ func (e *Emulator) Reset() {
 	e.pc = 0x200
 	e.waitKey = false
 	e.nextDraw = time.Time{}
+	e.nextDelay = time.Time{}
+	e.nextSound = time.Time{}
 }
 
 func (e *Emulator) Load(program []uint8) {
@@ -266,6 +264,23 @@ func (e *Emulator) Step() bool {
 			}
 			if e.dt == 0 {
 				e.nextDelay = time.Time{}
+			}
+		}
+	}
+
+	if e.st > 0 {
+		if e.nextSound.IsZero() {
+			e.nextSound = time.Now().Add(time.Second / 60)
+		} else {
+			if e.nextSound.Before(time.Now()) {
+				e.st--
+				e.nextSound = time.Now().Add(time.Second / 60)
+			}
+			if e.st == 0 {
+				e.nextSound = time.Time{}
+				if e.sound != nil {
+					e.sound()
+				}
 			}
 		}
 	}

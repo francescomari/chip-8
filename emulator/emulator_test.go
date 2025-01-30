@@ -637,40 +637,30 @@ func TestCharacterAddress(t *testing.T) {
 }
 
 func TestSoundTimer(t *testing.T) {
-	e := run(t,
-		0x60, 0x02, // LD V0, 0x03
+	e := emulator.New()
+
+	var sound bool
+
+	e.SetSound(func() {
+		sound = true
+	})
+
+	e.Load([]uint8{
+		0x60, 0x0f, // LD V0, 0x0f
 		0xf0, 0x18, // LD ST, V0
-	)
+		0xf0, 0x15, // LD DT, V0
+		0xf1, 0x07, // LD V1, DT
+		0x31, 0x00, // SE V1, 0x00
+		0x12, 0x06, // JP 0x206
+	})
 
-	check(t, e).
-		soundTimer(0x02)
-
-	// Clocking the timer should decrement it but not trigger it.
-
-	if trigger := e.STClock(); trigger {
-		t.Fatalf("timer triggered")
+	for e.Step() {
+		// Run next instruction.
 	}
 
-	check(t, e).
-		soundTimer(0x01)
-
-	// Clocking the timer should decrement it and trigger it.
-
-	if trigger := e.STClock(); !trigger {
-		t.Fatalf("timer not triggered")
+	if !sound {
+		t.Fatalf("sound timer not triggered")
 	}
-
-	check(t, e).
-		soundTimer(0x00)
-
-	// Clocking the timer should keep the timer at 0 and not trigger it.
-
-	if trigger := e.STClock(); trigger {
-		t.Fatalf("timer triggered")
-	}
-
-	check(t, e).
-		soundTimer(0x00)
 }
 
 func run(t *testing.T, data ...uint8) *emulator.Emulator {
