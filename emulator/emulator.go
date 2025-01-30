@@ -254,13 +254,15 @@ func (e *Emulator) Step() bool {
 		}
 	}
 
+	now := time.Now()
+
 	if e.dt > 0 {
 		if e.nextDelay.IsZero() {
-			e.nextDelay = time.Now().Add(time.Second / 60)
+			e.nextDelay = now.Add(time.Second / 60)
 		} else {
-			if e.nextDelay.Before(time.Now()) {
+			if e.nextDelay.Before(now) {
 				e.dt--
-				e.nextDelay = time.Now().Add(time.Second / 60)
+				e.nextDelay = now.Add(time.Second / 60)
 			}
 			if e.dt == 0 {
 				e.nextDelay = time.Time{}
@@ -270,11 +272,11 @@ func (e *Emulator) Step() bool {
 
 	if e.st > 0 {
 		if e.nextSound.IsZero() {
-			e.nextSound = time.Now().Add(time.Second / 60)
+			e.nextSound = now.Add(time.Second / 60)
 		} else {
-			if e.nextSound.Before(time.Now()) {
+			if e.nextSound.Before(now) {
 				e.st--
-				e.nextSound = time.Now().Add(time.Second / 60)
+				e.nextSound = now.Add(time.Second / 60)
 			}
 			if e.st == 0 {
 				e.nextSound = time.Time{}
