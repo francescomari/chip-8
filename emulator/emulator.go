@@ -537,10 +537,12 @@ func (e *Emulator) generateRandomNumber(op uint16) {
 }
 
 func (e *Emulator) throttleDraw() {
+	now := time.Now()
+
 	if e.nextDraw.IsZero() {
 		time.Sleep(time.Second / 60)
-	} else if time.Now().Before(e.nextDraw) {
-		time.Sleep(e.nextDraw.Sub(time.Now()))
+	} else if now.Before(e.nextDraw) {
+		time.Sleep(e.nextDraw.Sub(now))
 	}
 
 	e.nextDraw = time.Now().Add(time.Second / 60)
