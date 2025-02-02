@@ -2,6 +2,17 @@
 
 An emulator for the CHIP-8 virtual machine.
 
+## Usage
+
+Open a rom with the `chip8` program.
+
+```sh
+go run ./cmd/chip8 roms/7-beep.ch8
+```
+
+Only CHIP-8 instructions are supported. Invalid roms will trigger a panic in the
+emulator.
+
 ## References
 
 - [CHIP-8 on Wikipedia](https://en.wikipedia.org/wiki/CHIP-8)
