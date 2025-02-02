@@ -132,12 +132,6 @@ func (e *Emulator) KeyDown(key uint8) {
 
 	key = key & 0xf
 	e.keys[key] = true
-
-	if e.waitKey {
-		e.v[e.waitKeyRegister] = key
-		e.waitKey = false
-		e.pc += 2
-	}
 }
 
 func (e *Emulator) KeyUp(key uint8) {
@@ -146,6 +140,12 @@ func (e *Emulator) KeyUp(key uint8) {
 
 	key = key & 0xf
 	e.keys[key] = false
+
+	if e.waitKey {
+		e.v[e.waitKeyRegister] = key
+		e.waitKey = false
+		e.pc += 2
+	}
 }
 
 func (e *Emulator) SetRNG(rng func() uint32) {
