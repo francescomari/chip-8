@@ -68,12 +68,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.emulator.Display(&display)
 
+	// This uses the same color palette of the original Game Boy, as documented by
+	// https://en.wikipedia.org/wiki/List_of_video_game_console_palettes.
+
 	for y := range display {
 		for x := range display[y] {
 			if display[y][x] != 0 {
-				screen.Set(x, y, color.Black)
+				screen.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 1})
 			} else {
-				screen.Set(x, y, color.White)
+				screen.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 1})
 			}
 		}
 	}
