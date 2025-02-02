@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/francescomari/chip-8/emulator"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -128,9 +129,9 @@ func run() error {
 	e.Load(rom)
 
 	e.SetSound(func() {
-		player.Pause()
 		player.Rewind()
 		player.Play()
+		waitForPlayer(player)
 	})
 
 	game := Game{
@@ -145,4 +146,18 @@ func run() error {
 	}
 
 	return nil
+}
+
+func waitForPlayer(p *audio.Player) {
+	var last time.Duration
+
+	for {
+		curr := p.Position()
+
+		if curr == last {
+			break
+		}
+
+		last = curr
+	}
 }
