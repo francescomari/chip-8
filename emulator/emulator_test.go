@@ -861,14 +861,6 @@ func (c checks) display(x, y int, on bool) checks {
 	return c
 }
 
-func (c checks) soundTimer(want uint8) checks {
-	if got := c.e.ST(); got != want {
-		c.t.Fatalf("sound timer: got %#x, want %#x", got, want)
-	}
-
-	return c
-}
-
 func (c checks) delayTimer(want uint8) checks {
 	if got := c.e.DT(); got != want {
 		c.t.Fatalf("delay timer: got %#x, want %#x", got, want)
