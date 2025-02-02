@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"image/color"
@@ -10,8 +12,13 @@ import (
 
 	"github.com/francescomari/chip-8/emulator"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
+
+//go:embed beep.wav
+var beep []byte
 
 var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
 	ebiten.Key1: 0x1,
@@ -99,23 +106,41 @@ func run() error {
 		return fmt.Errorf("invalid number of arguments")
 	}
 
-	data, err := os.ReadFile(flag.Arg(0))
+	rom, err := os.ReadFile(flag.Arg(0))
 	if err != nil {
 		return fmt.Errorf("read file: %v", err)
 	}
 
+	context := audio.NewContext(44100)
+
+	stream, err := wav.DecodeWithoutResampling(bytes.NewReader(beep))
+	if err != nil {
+		return fmt.Errorf("decode beep audio: %v", err)
+	}
+
+	player, err := context.NewPlayer(stream)
+	if err != nil {
+		return fmt.Errorf("create beep player: %v", err)
+	}
+
 	e := emulator.New()
 
-	e.Load(data)
+	e.Load(rom)
 
-	g := Game{
+	e.SetSound(func() {
+		player.Pause()
+		player.Rewind()
+		player.Play()
+	})
+
+	game := Game{
 		emulator: e,
 	}
 
 	ebiten.SetWindowSize(10*emulator.DisplayWidth, 10*emulator.DisplayHeight)
 	ebiten.SetWindowTitle("CHIP-8 Emulator")
 
-	if err := ebiten.RunGame(&g); err != nil {
+	if err := ebiten.RunGame(&game); err != nil {
 		return fmt.Errorf("run game: %v", err)
 	}
 
