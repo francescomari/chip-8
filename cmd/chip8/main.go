@@ -21,6 +21,7 @@ var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
 	ebiten.KeyQ: 0x4,
 	ebiten.KeyW: 0x5,
 	ebiten.KeyE: 0x6,
+	ebiten.KeyR: 0xd,
 	ebiten.KeyA: 0x7,
 	ebiten.KeyS: 0x8,
 	ebiten.KeyD: 0x9,
