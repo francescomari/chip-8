@@ -3,8 +3,6 @@ package emulator
 import (
 	"fmt"
 	"math/rand/v2"
-	"sync"
-	"time"
 )
 
 var fonts [80]uint8 = [80]uint8{
@@ -29,7 +27,6 @@ var fonts [80]uint8 = [80]uint8{
 const (
 	DisplayWidth  = 64
 	DisplayHeight = 32
-	clockPeriod   = time.Second / 60
 )
 
 type (
@@ -41,24 +38,20 @@ type (
 )
 
 type Emulator struct {
-	mu               sync.RWMutex
-	memory           Memory        // Main memory (4KB)
-	v                Registers     // Register array (V0 to VF)
-	i                uint16        // Index register (12-bit)
-	stack            Stack         // Stack frames
-	sp               uint8         // Pointer to the next available stack frame
-	dt               uint8         // Delay timer
-	st               uint8         // Sound timer
-	pc               uint16        // Program counter (12-bit)
-	display          Display       // Display
-	keys             Keys          // Currently pressed keys
-	waitKey          bool          // Waiting for a key press?
-	waitKeyRegister  uint8         // Where to store the pressed key, if waiting
-	rng              func() uint32 // Random number generator
-	sound            func()        // Callback called when the sound timer
-	instructionDelay time.Duration // The time spent by the last instruction
-	nextDelayTimer   time.Duration // When to decrement the delay timer
-	nextSoundTimer   time.Duration // When to decrement the sound timer
+	memory          Memory        // Main memory (4KB)
+	v               Registers     // Register array (V0 to VF)
+	i               uint16        // Index register (12-bit)
+	stack           Stack         // Stack frames
+	sp              uint8         // Pointer to the next available stack frame
+	dt              uint8         // Delay timer
+	st              uint8         // Sound timer
+	pc              uint16        // Program counter (12-bit)
+	display         Display       // Display
+	keys            Keys          // Currently pressed keys
+	waitKey         bool          // Waiting for a key press?
+	waitKeyRegister uint8         // Where to store the pressed key, if waiting
+	rng             func() uint32 // Random number generator
+	sound           func()        // Callback called when the sound timer
 }
 
 func New() *Emulator {
@@ -68,77 +61,65 @@ func New() *Emulator {
 }
 
 func (e *Emulator) Memory(buffer []uint8) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	copy(buffer, e.memory[:])
 }
 
 func (e *Emulator) V(buffer []uint8) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	copy(buffer, e.v[:])
 }
 
 func (e *Emulator) I() uint16 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	return e.i
 }
 
 func (e *Emulator) Stack(buffer []uint16) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	copy(buffer, e.stack[:])
 }
 
 func (e *Emulator) SP() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	return e.sp
 }
 
 func (e *Emulator) DT() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	return e.dt
 }
 
 func (e *Emulator) ST() uint8 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	return e.st
 }
 
 func (e *Emulator) PC() uint16 {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	return e.pc
 }
 
 func (e *Emulator) Display(buffer *Display) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	*buffer = e.display
 }
 
 func (e *Emulator) Keys(keys *Keys) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
 	*keys = e.keys
 }
 
-func (e *Emulator) KeyDown(key uint8) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (e *Emulator) Clock() {
+	if e.dt > 0 {
+		e.dt--
+	}
 
+	if e.st > 0 {
+		e.st--
+
+		if e.st == 0 && e.sound != nil {
+			e.sound()
+		}
+	}
+}
+
+func (e *Emulator) KeyDown(key uint8) {
 	key = key & 0xf
 	e.keys[key] = true
 }
 
 func (e *Emulator) KeyUp(key uint8) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	key = key & 0xf
 	e.keys[key] = false
 
@@ -150,23 +131,14 @@ func (e *Emulator) KeyUp(key uint8) {
 }
 
 func (e *Emulator) SetRNG(rng func() uint32) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.rng = rng
 }
 
 func (e *Emulator) SetSound(sound func()) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.sound = sound
 }
 
 func (e *Emulator) Reset() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.memory = Memory{}
 	e.v = Registers{}
 	e.stack = Stack{}
@@ -181,23 +153,13 @@ func (e *Emulator) Reset() {
 	e.st = 0
 	e.pc = 0x200
 	e.waitKey = false
-	e.nextDelayTimer = 0
-	e.nextSoundTimer = 0
 }
 
 func (e *Emulator) Load(program []uint8) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	copy(e.memory[0x200:], program)
 }
 
 func (e *Emulator) Step() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.instructionDelay = 0
-
 	hi := uint16(e.memory[e.pc])
 	lo := uint16(e.memory[e.pc+1])
 	op := (hi << 8) | lo
@@ -299,72 +261,28 @@ func (e *Emulator) Step() bool {
 		}
 	}
 
-	if e.dt > 0 {
-		if e.nextDelayTimer == 0 {
-			e.nextDelayTimer = clockPeriod
-		} else {
-			e.nextDelayTimer -= e.instructionDelay
-
-			if e.nextDelayTimer <= 0 {
-				e.dt--
-				e.nextDelayTimer += clockPeriod
-			}
-
-			if e.dt == 0 {
-				e.nextDelayTimer = 0
-			}
-		}
-	}
-
-	if e.st > 0 {
-		if e.nextSoundTimer == 0 {
-			e.nextSoundTimer = clockPeriod
-		} else {
-			e.nextSoundTimer -= e.instructionDelay
-
-			if e.nextSoundTimer <= 0 {
-				e.st--
-				e.nextSoundTimer += clockPeriod
-			}
-
-			if e.st == 0 {
-				e.nextSoundTimer = 0
-
-				if e.sound != nil {
-					e.sound()
-				}
-			}
-		}
-	}
-
-	time.Sleep(e.instructionDelay)
-
 	return true
 }
 
 func (e *Emulator) clearDisplay() {
 	e.display = Display{}
 	e.pc += 2
-	e.instructionDelay = 109 * time.Microsecond
 }
 
 func (e *Emulator) functionReturn() {
 	e.sp--
 	e.pc = e.stack[e.sp]
 	e.pc += 2
-	e.instructionDelay = 105 * time.Microsecond
 }
 
 func (e *Emulator) jump(op uint16) {
 	e.pc = op & 0x0fff
-	e.instructionDelay = 105 * time.Microsecond
 }
 
 func (e *Emulator) functionCall(op uint16) {
 	e.stack[e.sp] = e.pc
 	e.sp++
 	e.pc = op & 0xfff
-	e.instructionDelay = 105 * time.Microsecond
 }
 
 func (e *Emulator) skipIfConstantEqual(op uint16) {
@@ -376,8 +294,6 @@ func (e *Emulator) skipIfConstantEqual(op uint16) {
 	} else {
 		e.pc += 2
 	}
-
-	e.instructionDelay = 55 * time.Microsecond
 }
 
 func (e *Emulator) skipIfConstantNotEqual(op uint16) {
@@ -389,8 +305,6 @@ func (e *Emulator) skipIfConstantNotEqual(op uint16) {
 	} else {
 		e.pc += 2
 	}
-
-	e.instructionDelay = 55 * time.Microsecond
 }
 
 func (e *Emulator) skipIfRegisterEqual(op uint16) {
@@ -402,8 +316,6 @@ func (e *Emulator) skipIfRegisterEqual(op uint16) {
 	} else {
 		e.pc += 2
 	}
-
-	e.instructionDelay = 73 * time.Microsecond
 }
 
 func (e *Emulator) loadRegisterFromConstant(op uint16) {
@@ -411,7 +323,6 @@ func (e *Emulator) loadRegisterFromConstant(op uint16) {
 	v := uint8(op & 0x00ff)
 	e.v[x] = v
 	e.pc += 2
-	e.instructionDelay = 27 * time.Microsecond
 }
 
 func (e *Emulator) incrementRegister(op uint16) {
@@ -419,7 +330,6 @@ func (e *Emulator) incrementRegister(op uint16) {
 	v := uint8(op & 0x00ff)
 	e.v[x] += v
 	e.pc += 2
-	e.instructionDelay = 45 * time.Microsecond
 }
 
 func (e *Emulator) loadRegisterFromRegister(op uint16) {
@@ -427,7 +337,6 @@ func (e *Emulator) loadRegisterFromRegister(op uint16) {
 	y := (op & 0x00f0) >> 4
 	e.v[x] = e.v[y]
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) bitwiseOr(op uint16) {
@@ -436,7 +345,6 @@ func (e *Emulator) bitwiseOr(op uint16) {
 	e.v[x] |= e.v[y]
 	e.v[0xf] = 0
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) bitwiseAnd(op uint16) {
@@ -445,7 +353,6 @@ func (e *Emulator) bitwiseAnd(op uint16) {
 	e.v[x] &= e.v[y]
 	e.v[0xf] = 0
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) bitwiseXor(op uint16) {
@@ -454,7 +361,6 @@ func (e *Emulator) bitwiseXor(op uint16) {
 	e.v[x] ^= e.v[y]
 	e.v[0xf] = 0
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) addWithCarry(op uint16) {
@@ -476,7 +382,6 @@ func (e *Emulator) addWithCarry(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) subtractRightWithBorrow(op uint16) {
@@ -498,7 +403,6 @@ func (e *Emulator) subtractRightWithBorrow(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) subtractLeftWithBorrow(op uint16) {
@@ -520,7 +424,6 @@ func (e *Emulator) subtractLeftWithBorrow(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) shiftRight(op uint16) {
@@ -544,7 +447,6 @@ func (e *Emulator) shiftRight(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) shiftLeft(op uint16) {
@@ -568,7 +470,6 @@ func (e *Emulator) shiftLeft(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 200 * time.Microsecond
 }
 
 func (e *Emulator) skipIfRegisterNotEqual(op uint16) {
@@ -580,21 +481,17 @@ func (e *Emulator) skipIfRegisterNotEqual(op uint16) {
 	} else {
 		e.pc += 2
 	}
-
-	e.instructionDelay = 73 * time.Microsecond
 }
 
 func (e *Emulator) loadIndex(op uint16) {
 	n := op & 0x0fff
 	e.i = n
 	e.pc += 2
-	e.instructionDelay = 55 * time.Microsecond
 }
 
 func (e *Emulator) jumpRelative(op uint16) {
 	n := op & 0x0fff
 	e.pc = uint16(e.v[0]) + n
-	e.instructionDelay = 105 * time.Microsecond
 }
 
 func (e *Emulator) generateRandomNumber(op uint16) {
@@ -611,7 +508,6 @@ func (e *Emulator) generateRandomNumber(op uint16) {
 
 	e.v[x] = uint8(r) & uint8(n)
 	e.pc += 2
-	e.instructionDelay = 164 * time.Microsecond
 }
 
 func (e *Emulator) draw(op uint16) {
@@ -651,7 +547,6 @@ func (e *Emulator) draw(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 16666 * time.Microsecond
 }
 
 func (e *Emulator) skipIfKeyPressed(op uint16) {
@@ -663,8 +558,6 @@ func (e *Emulator) skipIfKeyPressed(op uint16) {
 	} else {
 		e.pc += 2
 	}
-
-	e.instructionDelay = 73 * time.Microsecond
 }
 
 func (e *Emulator) skipIfKeyNotPressed(op uint16) {
@@ -676,57 +569,42 @@ func (e *Emulator) skipIfKeyNotPressed(op uint16) {
 	} else {
 		e.pc += 4
 	}
-
-	e.instructionDelay = 73 * time.Microsecond
 }
 
 func (e *Emulator) loadRegisterFromDelayTimer(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.v[x] = e.dt
 	e.pc += 2
-	e.instructionDelay = 45 * time.Microsecond
 }
 
 func (e *Emulator) waitForKeyPress(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.waitKey = true
 	e.waitKeyRegister = uint8(x)
-
-	// In theory, this instruction doesn't have an execution time because, on the
-	// original emulator, it would block until a key is pressed and unpressed.
-	// Unfortunately, we have to assign it a nominal execution time to correctly
-	// decrement the sound and delaty timers. I've chose to assign the same
-	// execution times as the keyboard instructions EX9E and EXA1.
-
-	e.instructionDelay = 73 * time.Microsecond
 }
 
 func (e *Emulator) loadDelayTimer(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.dt = e.v[x]
 	e.pc += 2
-	e.instructionDelay = 45 * time.Microsecond
 }
 
 func (e *Emulator) loadSoundTimer(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.st = e.v[x]
 	e.pc += 2
-	e.instructionDelay = 45 * time.Microsecond
 }
 
 func (e *Emulator) incrementIndex(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.i += uint16(e.v[x])
 	e.pc += 2
-	e.instructionDelay = 86 * time.Microsecond
 }
 
 func (e *Emulator) loadIndexFromSprite(op uint16) {
 	x := (op & 0x0f00) >> 8
 	e.i = uint16(5 * e.v[x])
 	e.pc += 2
-	e.instructionDelay = 91 * time.Microsecond
 }
 
 func (e *Emulator) loadMemoryFromBCD(op uint16) {
@@ -735,7 +613,6 @@ func (e *Emulator) loadMemoryFromBCD(op uint16) {
 	e.memory[e.i+1] = (e.v[x] % 100) / 10
 	e.memory[e.i+2] = e.v[x] % 10
 	e.pc += 2
-	e.instructionDelay = 927 * time.Microsecond
 }
 
 func (e *Emulator) loadMemoryFromRegisters(op uint16) {
@@ -747,7 +624,6 @@ func (e *Emulator) loadMemoryFromRegisters(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 605 * time.Microsecond
 }
 
 func (e *Emulator) loadRegistersFromMemory(op uint16) {
@@ -759,5 +635,4 @@ func (e *Emulator) loadRegistersFromMemory(op uint16) {
 	}
 
 	e.pc += 2
-	e.instructionDelay = 605 * time.Microsecond
 }

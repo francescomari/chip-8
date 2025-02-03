@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"flag"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"github.com/francescomari/chip-8/emulator"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -41,15 +39,39 @@ var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
 }
 
 type Game struct {
-	emulator *emulator.Emulator
-	once     sync.Once
+	emulator  *emulator.Emulator
+	display   *emulator.Display
+	once      sync.Once
+	keyDownCh chan uint8
+	keyUpCh   chan uint8
+	displayCh chan chan *emulator.Display
 }
 
 func (g *Game) Update() error {
 	g.once.Do(func() {
+		g.keyDownCh = make(chan uint8)
+		g.keyUpCh = make(chan uint8)
+		g.displayCh = make(chan chan *emulator.Display)
+
 		go func() {
+			stepCh := time.Tick(time.Second / 500)
+			clockCh := time.Tick(time.Second / 60)
+
 			for {
-				g.emulator.Step()
+				select {
+				case <-stepCh:
+					g.emulator.Step()
+				case <-clockCh:
+					g.emulator.Clock()
+				case k := <-g.keyDownCh:
+					g.emulator.KeyDown(k)
+				case k := <-g.keyUpCh:
+					g.emulator.KeyUp(k)
+				case displayCh := <-g.displayCh:
+					d := new(emulator.Display)
+					g.emulator.Display(d)
+					displayCh <- d
+				}
 			}
 		}()
 	})
@@ -58,30 +80,30 @@ func (g *Game) Update() error {
 
 	for _, key := range inpututil.AppendJustPressedKeys(keys[:0]) {
 		if value, ok := mappings[key]; ok {
-			g.emulator.KeyDown(value)
+			g.keyDownCh <- value
 		}
 	}
 
 	for _, key := range inpututil.AppendJustReleasedKeys(keys[:0]) {
 		if value, ok := mappings[key]; ok {
-			g.emulator.KeyUp(value)
+			g.keyUpCh <- value
 		}
 	}
+
+	displayCh := make(chan *emulator.Display)
+	g.displayCh <- displayCh
+	g.display = <-displayCh
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	var display emulator.Display
-
-	g.emulator.Display(&display)
-
 	// This uses the same color palette of the original Game Boy, as documented by
 	// https://en.wikipedia.org/wiki/List_of_video_game_console_palettes.
 
-	for y := range display {
-		for x := range display[y] {
-			if display[y][x] != 0 {
+	for y := range g.display {
+		for x := range g.display[y] {
+			if g.display[y][x] != 0 {
 				screen.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 1})
 			} else {
 				screen.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 1})
@@ -114,24 +136,12 @@ func run() error {
 
 	context := audio.NewContext(44100)
 
-	stream, err := wav.DecodeWithoutResampling(bytes.NewReader(beep))
-	if err != nil {
-		return fmt.Errorf("decode beep audio: %v", err)
-	}
-
-	player, err := context.NewPlayer(stream)
-	if err != nil {
-		return fmt.Errorf("create beep player: %v", err)
-	}
-
 	e := emulator.New()
 
 	e.Load(rom)
 
 	e.SetSound(func() {
-		player.Rewind()
-		player.Play()
-		waitForPlayer(player)
+		context.NewPlayerFromBytes(beep).Play()
 	})
 
 	game := Game{
@@ -146,18 +156,4 @@ func run() error {
 	}
 
 	return nil
-}
-
-func waitForPlayer(p *audio.Player) {
-	var last time.Duration
-
-	for {
-		curr := p.Position()
-
-		if curr == last {
-			break
-		}
-
-		last = curr
-	}
 }

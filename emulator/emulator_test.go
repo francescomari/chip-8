@@ -2,6 +2,7 @@ package emulator_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/francescomari/chip-8/emulator"
 )
@@ -654,27 +655,20 @@ func TestSoundTimer(t *testing.T) {
 		0x12, 0x06, // JP 0x206
 	})
 
+	clock := time.Tick(time.Second / 60)
+
 	for e.Step() {
-		// Run next instruction.
+		select {
+		case <-clock:
+			e.Clock()
+		default:
+			continue
+		}
 	}
 
 	if !sound {
 		t.Fatalf("sound timer not triggered")
 	}
-}
-
-func run(t *testing.T, data ...uint8) *emulator.Emulator {
-	t.Helper()
-
-	e := emulator.New()
-
-	e.Load(data)
-
-	for e.Step() {
-		// Run next instruction.
-	}
-
-	return e
 }
 
 func TestDelayTimer(t *testing.T) {
@@ -759,7 +753,7 @@ func TestWaitKeyPress(t *testing.T) {
 		0xf0, 0x0a, // LD V0, K
 	})
 
-	if ok := e.Step(); !ok {
+	if !e.Step() {
 		t.Fatal("should continue")
 	}
 
@@ -774,7 +768,7 @@ func TestWaitKeyPress(t *testing.T) {
 	check(t, e).
 		register(0x0, 0x0f)
 
-	if ok := e.Step(); ok {
+	if e.Step() {
 		t.Fatal("should stop")
 	}
 }
@@ -867,4 +861,25 @@ func (c checks) delayTimer(want uint8) checks {
 	}
 
 	return c
+}
+
+func run(t *testing.T, data ...uint8) *emulator.Emulator {
+	t.Helper()
+
+	e := emulator.New()
+
+	e.Load(data)
+
+	clock := time.Tick(time.Second / 60)
+
+	for e.Step() {
+		select {
+		case <-clock:
+			e.Clock()
+		default:
+			continue
+		}
+	}
+
+	return e
 }
