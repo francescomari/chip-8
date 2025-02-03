@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,13 +39,30 @@ var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
 	ebiten.KeyV: 0xf,
 }
 
+type State struct {
+	V      emulator.Registers
+	I      uint16
+	SP     uint8
+	DT     uint8
+	ST     uint8
+	PC     uint16
+	Memory emulator.Memory
+}
+
 type Game struct {
-	emulator  *emulator.Emulator
-	display   *emulator.Display
-	once      sync.Once
-	keyDownCh chan uint8
-	keyUpCh   chan uint8
-	displayCh chan chan *emulator.Display
+	emulator     *emulator.Emulator
+	debug        bool
+	display      *emulator.Display
+	state        *State
+	once         sync.Once
+	keyDownCh    chan uint8
+	keyUpCh      chan uint8
+	displayCh    chan chan *emulator.Display
+	startDebugCh chan struct{}
+	stopDebugCh  chan struct{}
+	stepCh       chan time.Time
+	clockCh      chan time.Time
+	stateCh      chan chan *State
 }
 
 func (g *Game) Update() error {
@@ -52,10 +70,30 @@ func (g *Game) Update() error {
 		g.keyDownCh = make(chan uint8)
 		g.keyUpCh = make(chan uint8)
 		g.displayCh = make(chan chan *emulator.Display)
+		g.startDebugCh = make(chan struct{})
+		g.stopDebugCh = make(chan struct{})
+		g.stepCh = make(chan time.Time)
+		g.clockCh = make(chan time.Time)
+		g.stateCh = make(chan chan *State)
 
 		go func() {
-			stepCh := time.Tick(time.Second / 500)
-			clockCh := time.Tick(time.Second / 60)
+			var (
+				tickerStepCh  = time.Tick(time.Second / 500)
+				tickerClockCh = time.Tick(time.Second / 60)
+			)
+
+			var (
+				stepCh  <-chan time.Time
+				clockCh <-chan time.Time
+			)
+
+			if g.debug {
+				stepCh = g.stepCh
+				clockCh = g.clockCh
+			} else {
+				stepCh = tickerStepCh
+				clockCh = tickerClockCh
+			}
 
 			for {
 				select {
@@ -68,9 +106,26 @@ func (g *Game) Update() error {
 				case k := <-g.keyUpCh:
 					g.emulator.KeyUp(k)
 				case displayCh := <-g.displayCh:
-					d := new(emulator.Display)
-					g.emulator.Display(d)
-					displayCh <- d
+					var d emulator.Display
+					g.emulator.Display(&d)
+					displayCh <- &d
+				case <-g.startDebugCh:
+					stepCh = g.stepCh
+					clockCh = g.clockCh
+				case <-g.stopDebugCh:
+					stepCh = tickerStepCh
+					clockCh = tickerClockCh
+				case stateCh := <-g.stateCh:
+					s := State{
+						I:  g.emulator.I(),
+						SP: g.emulator.SP(),
+						DT: g.emulator.DT(),
+						ST: g.emulator.ST(),
+						PC: g.emulator.PC(),
+					}
+					g.emulator.V(&s.V)
+					g.emulator.Memory(&s.Memory)
+					stateCh <- &s
 				}
 			}
 		}()
@@ -93,6 +148,36 @@ func (g *Game) Update() error {
 	displayCh := make(chan *emulator.Display)
 	g.displayCh <- displayCh
 	g.display = <-displayCh
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
+		if g.debug {
+			g.stopDebugCh <- struct{}{}
+		} else {
+			g.startDebugCh <- struct{}{}
+		}
+
+		g.debug = !g.debug
+	}
+
+	var printState bool
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyF10) && g.debug {
+		g.stepCh <- time.Now()
+		printState = true
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) && g.debug {
+		g.clockCh <- time.Now()
+		printState = true
+	}
+
+	if printState {
+		stateCh := make(chan *State)
+		g.stateCh <- stateCh
+		g.state = <-stateCh
+
+		logState(g.state)
+	}
 
 	return nil
 }
@@ -123,6 +208,9 @@ func main() {
 }
 
 func run() error {
+	var debug bool
+
+	flag.BoolVar(&debug, "debug", false, "Start the emulator in debug mode")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -146,6 +234,7 @@ func run() error {
 
 	game := Game{
 		emulator: e,
+		debug:    debug,
 	}
 
 	ebiten.SetWindowSize(10*emulator.DisplayWidth, 10*emulator.DisplayHeight)
@@ -156,4 +245,19 @@ func run() error {
 	}
 
 	return nil
+}
+
+func logState(s *State) {
+	var b strings.Builder
+
+	for i, v := range s.V {
+		if i > 0 {
+			fmt.Fprintf(&b, ", v%x = %02X", i, v)
+		} else {
+			fmt.Fprintf(&b, "v%x = %02X", i, v)
+		}
+	}
+
+	log.Println(b.String())
+	log.Printf("i = %04X sp = %02X, dt = %02X, st = %02X, pc = %04X", s.I, s.SP, s.DT, s.ST, s.PC)
 }

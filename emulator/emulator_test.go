@@ -12,7 +12,7 @@ func TestNew(t *testing.T) {
 
 	var memory emulator.Memory
 
-	e.Memory(memory[:])
+	e.Memory(&memory)
 
 	// Memory location lower than 0x0200 are reserved to the interpreter and are
 	// not guaranteeed to be zeroed.
@@ -25,7 +25,7 @@ func TestNew(t *testing.T) {
 
 	var registers emulator.Registers
 
-	e.V(registers[:])
+	e.V(&registers)
 
 	for i, v := range registers {
 		if v != 0 {
@@ -39,7 +39,7 @@ func TestNew(t *testing.T) {
 
 	var stack emulator.Stack
 
-	e.Stack(stack[:])
+	e.Stack(&stack)
 
 	for _, v := range stack {
 		if v != 0 {
@@ -806,7 +806,7 @@ func (c checks) register(i int, want uint8) checks {
 
 	var registers emulator.Registers
 
-	c.e.V(registers[:])
+	c.e.V(&registers)
 
 	if got := registers[i]; got != want {
 		c.t.Fatalf("V%X: got %#x, want %#x", i, got, want)
@@ -830,7 +830,7 @@ func (c checks) memory(address uint16, want uint8) checks {
 
 	var memory emulator.Memory
 
-	c.e.Memory(memory[:])
+	c.e.Memory(&memory)
 
 	if got := memory[address]; got != want {
 		c.t.Fatalf("memory[%x]: got %#x, want %#x", address, got, want)

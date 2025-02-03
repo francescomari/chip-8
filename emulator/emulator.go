@@ -60,20 +60,20 @@ func New() *Emulator {
 	return &e
 }
 
-func (e *Emulator) Memory(buffer []uint8) {
-	copy(buffer, e.memory[:])
+func (e *Emulator) Memory(memory *Memory) {
+	*memory = e.memory
 }
 
-func (e *Emulator) V(buffer []uint8) {
-	copy(buffer, e.v[:])
+func (e *Emulator) V(registers *Registers) {
+	*registers = e.v
 }
 
 func (e *Emulator) I() uint16 {
 	return e.i
 }
 
-func (e *Emulator) Stack(buffer []uint16) {
-	copy(buffer, e.stack[:])
+func (e *Emulator) Stack(stack *Stack) {
+	*stack = e.stack
 }
 
 func (e *Emulator) SP() uint8 {
