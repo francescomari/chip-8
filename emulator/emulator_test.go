@@ -10,66 +10,54 @@ import (
 func TestNew(t *testing.T) {
 	e := emulator.New()
 
-	var memory emulator.Memory
+	var state emulator.State
 
-	e.Memory(&memory)
+	e.State(&state)
 
 	// Memory location lower than 0x0200 are reserved to the interpreter and are
-	// not guaranteeed to be zeroed.
+	// not guaranteed to be zeroed.
 
-	for _, v := range memory[0x200:] {
+	for _, v := range state.Memory[0x200:] {
 		if v != 0 {
 			t.Fatalf("memory not zeroed")
 		}
 	}
 
-	var registers emulator.Registers
-
-	e.V(&registers)
-
-	for i, v := range registers {
+	for i, v := range state.V {
 		if v != 0 {
 			t.Fatalf("register %d not zeroed", i)
 		}
 	}
 
-	if e.I() != 0 {
+	if state.I != 0 {
 		t.Fatalf("index register not zeroed")
 	}
 
-	var stack emulator.Stack
-
-	e.Stack(&stack)
-
-	for _, v := range stack {
+	for _, v := range state.Stack {
 		if v != 0 {
 			t.Fatalf("stack not zeroed")
 		}
 	}
 
-	if e.SP() != 0 {
+	if state.SP != 0 {
 		t.Fatalf("stack pointer not zeroed")
 	}
 
-	if e.DT() != 0 {
+	if state.DT != 0 {
 		t.Fatalf("delay timer not zeroed")
 	}
 
-	if e.ST() != 0 {
+	if state.ST != 0 {
 		t.Fatalf("sound timer not zeroed")
 	}
 
-	if e.PC() != 0x200 {
+	if state.PC != 0x200 {
 		t.Fatalf("program counter not initialized")
 	}
 
-	var display emulator.Display
-
-	e.Display(&display)
-
-	for y := range display {
-		for x := range display[y] {
-			if display[y][x] != 0 {
+	for y := range state.Display {
+		for x := range state.Display[y] {
+			if state.Display[y][x] != 0 {
 				t.Fatalf("display not initialized")
 			}
 		}
@@ -804,11 +792,11 @@ type checks struct {
 func (c checks) register(i int, want uint8) checks {
 	c.t.Helper()
 
-	var registers emulator.Registers
+	var state emulator.State
 
-	c.e.V(&registers)
+	c.e.State(&state)
 
-	if got := registers[i]; got != want {
+	if got := state.V[i]; got != want {
 		c.t.Fatalf("V%X: got %#x, want %#x", i, got, want)
 	}
 
@@ -818,7 +806,11 @@ func (c checks) register(i int, want uint8) checks {
 func (c checks) index(want uint16) checks {
 	c.t.Helper()
 
-	if got := c.e.I(); got != want {
+	var state emulator.State
+
+	c.e.State(&state)
+
+	if got := state.I; got != want {
 		c.t.Fatalf("I: got %#x, want %#x", got, want)
 	}
 
@@ -828,11 +820,11 @@ func (c checks) index(want uint16) checks {
 func (c checks) memory(address uint16, want uint8) checks {
 	c.t.Helper()
 
-	var memory emulator.Memory
+	var state emulator.State
 
-	c.e.Memory(&memory)
+	c.e.State(&state)
 
-	if got := memory[address]; got != want {
+	if got := state.Memory[address]; got != want {
 		c.t.Fatalf("memory[%x]: got %#x, want %#x", address, got, want)
 	}
 
@@ -842,11 +834,11 @@ func (c checks) memory(address uint16, want uint8) checks {
 func (c checks) display(x, y int, on bool) checks {
 	c.t.Helper()
 
-	var buffer emulator.Display
+	var state emulator.State
 
-	c.e.Display(&buffer)
+	c.e.State(&state)
 
-	if got := buffer[y][x]; on && got == 0 {
+	if got := state.Display[y][x]; on && got == 0 {
 		c.t.Fatalf("display[%d,%d]: pixel should be on, but it is off", x, y)
 	} else if !on && got != 0 {
 		c.t.Fatalf("display[%d,%d]: pixel should be off, but it is on", x, y)
@@ -856,7 +848,11 @@ func (c checks) display(x, y int, on bool) checks {
 }
 
 func (c checks) delayTimer(want uint8) checks {
-	if got := c.e.DT(); got != want {
+	var state emulator.State
+
+	c.e.State(&state)
+
+	if got := state.DT; got != want {
 		c.t.Fatalf("delay timer: got %#x, want %#x", got, want)
 	}
 

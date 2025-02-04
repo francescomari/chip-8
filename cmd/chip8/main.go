@@ -21,7 +21,7 @@ import (
 //go:embed beep.wav
 var beep []byte
 
-var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
+var mappings = map[ebiten.Key]uint8{
 	ebiten.Key1: 0x1,
 	ebiten.Key2: 0x2,
 	ebiten.Key3: 0x3,
@@ -40,42 +40,29 @@ var mappings map[ebiten.Key]uint8 = map[ebiten.Key]uint8{
 	ebiten.KeyV: 0xf,
 }
 
-type State struct {
-	V      emulator.Registers
-	I      uint16
-	SP     uint8
-	DT     uint8
-	ST     uint8
-	PC     uint16
-	Memory emulator.Memory
-}
-
 type Game struct {
 	emulator     *emulator.Emulator
 	debug        bool
-	display      *emulator.Display
-	state        *State
 	once         sync.Once
+	state        *emulator.State
 	keyDownCh    chan uint8
 	keyUpCh      chan uint8
-	displayCh    chan chan *emulator.Display
 	startDebugCh chan struct{}
 	stopDebugCh  chan struct{}
 	stepCh       chan time.Time
 	clockCh      chan time.Time
-	stateCh      chan chan *State
+	stateCh      chan chan *emulator.State
 }
 
 func (g *Game) Update() error {
 	g.once.Do(func() {
 		g.keyDownCh = make(chan uint8)
 		g.keyUpCh = make(chan uint8)
-		g.displayCh = make(chan chan *emulator.Display)
 		g.startDebugCh = make(chan struct{})
 		g.stopDebugCh = make(chan struct{})
 		g.stepCh = make(chan time.Time)
 		g.clockCh = make(chan time.Time)
-		g.stateCh = make(chan chan *State)
+		g.stateCh = make(chan chan *emulator.State)
 
 		go func() {
 			var (
@@ -106,10 +93,6 @@ func (g *Game) Update() error {
 					g.emulator.KeyDown(k)
 				case k := <-g.keyUpCh:
 					g.emulator.KeyUp(k)
-				case displayCh := <-g.displayCh:
-					var d emulator.Display
-					g.emulator.Display(&d)
-					displayCh <- &d
 				case <-g.startDebugCh:
 					stepCh = g.stepCh
 					clockCh = g.clockCh
@@ -117,16 +100,9 @@ func (g *Game) Update() error {
 					stepCh = tickerStepCh
 					clockCh = tickerClockCh
 				case stateCh := <-g.stateCh:
-					s := State{
-						I:  g.emulator.I(),
-						SP: g.emulator.SP(),
-						DT: g.emulator.DT(),
-						ST: g.emulator.ST(),
-						PC: g.emulator.PC(),
-					}
-					g.emulator.V(&s.V)
-					g.emulator.Memory(&s.Memory)
-					stateCh <- &s
+					s := new(emulator.State)
+					g.emulator.State(s)
+					stateCh <- s
 				}
 			}
 		}()
@@ -145,10 +121,6 @@ func (g *Game) Update() error {
 			g.keyUpCh <- value
 		}
 	}
-
-	displayCh := make(chan *emulator.Display)
-	g.displayCh <- displayCh
-	g.display = <-displayCh
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
 		if g.debug {
@@ -172,12 +144,12 @@ func (g *Game) Update() error {
 		printState = true
 	}
 
-	if printState {
-		stateCh := make(chan *State)
-		g.stateCh <- stateCh
-		g.state = <-stateCh
+	stateCh := make(chan *emulator.State)
+	g.stateCh <- stateCh
+	g.state = <-stateCh
 
-		logState(g.state)
+	if printState {
+		g.logState()
 	}
 
 	return nil
@@ -187,73 +159,31 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// This uses the same color palette of the original Game Boy, as documented by
 	// https://en.wikipedia.org/wiki/List_of_video_game_console_palettes.
 
-	for y := range g.display {
-		for x := range g.display[y] {
-			if g.display[y][x] != 0 {
-				screen.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 1})
+	for y := range g.state.Display {
+		for x := range g.state.Display[y] {
+			if g.state.Display[y][x] != 0 {
+				screen.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 0xff})
 			} else {
-				screen.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 1})
+				screen.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 0xff})
 			}
 		}
 	}
 }
 
-func (g *Game) Layout(w, h int) (int, int) {
+func (g *Game) Layout(_, _ int) (int, int) {
 	return emulator.DisplayWidth, emulator.DisplayHeight
 }
 
-func main() {
-	if err := run(); err != nil {
-		log.Fatalf("error: %v", err)
-	}
+func (g *Game) logState() {
+	log.Print(g.instructionString())
+	log.Print(g.registersString())
+	log.Print(g.stateString())
 }
 
-func run() error {
-	var debug bool
-
-	flag.BoolVar(&debug, "debug", false, "Start the emulator in debug mode")
-	flag.Parse()
-
-	if flag.NArg() != 1 {
-		return fmt.Errorf("invalid number of arguments")
-	}
-
-	rom, err := os.ReadFile(flag.Arg(0))
-	if err != nil {
-		return fmt.Errorf("read file: %v", err)
-	}
-
-	context := audio.NewContext(44100)
-
-	e := emulator.New()
-
-	e.Load(rom)
-
-	e.SetSound(func() {
-		context.NewPlayerFromBytes(beep).Play()
-	})
-
-	game := Game{
-		emulator: e,
-		debug:    debug,
-	}
-
-	ebiten.SetWindowSize(10*emulator.DisplayWidth, 10*emulator.DisplayHeight)
-	ebiten.SetWindowTitle("CHIP-8 Emulator")
-
-	if err := ebiten.RunGame(&game); err != nil {
-		return fmt.Errorf("run game: %v", err)
-	}
-
-	return nil
-}
-
-func logState(s *State) {
-	log.Printf("---> %s", decodeOp(s))
-
+func (g *Game) registersString() string {
 	var b strings.Builder
 
-	for i, v := range s.V {
+	for i, v := range g.state.V {
 		if i > 0 {
 			fmt.Fprintf(&b, ", v%x = %02x", i, v)
 		} else {
@@ -261,21 +191,29 @@ func logState(s *State) {
 		}
 	}
 
-	log.Println(b.String())
-
-	log.Printf("i = %04x sp = %02x, dt = %02x, st = %02x, pc = %04x", s.I, s.SP, s.DT, s.ST, s.PC)
+	return b.String()
 }
 
-func decodeOp(s *State) string {
+func (g *Game) stateString() string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "i = %04x,", g.state.I)
+	fmt.Fprintf(&b, "sp = %02x,", g.state.SP)
+	fmt.Fprintf(&b, "dt = %02x,", g.state.DT)
+	fmt.Fprintf(&b, "st = %02x,", g.state.ST)
+	fmt.Fprintf(&b, "pc = %04x", g.state.PC)
+
+	return b.String()
+}
+
+func (g *Game) instructionString() string {
 	var (
-		hi     = uint16(s.Memory[s.PC]) << 8
-		lo     = uint16(s.Memory[s.PC+1])
-		op     = hi | lo
-		x      = fmt.Sprintf("v%x", (op&0x0f00)>>8)
-		y      = fmt.Sprintf("v%x", (op&0x00f0)>>4)
-		n      = fmt.Sprintf("%03x", op&0x0fff)
-		k      = fmt.Sprintf("%02x", op&0x00ff)
-		nibble = fmt.Sprintf("%x", op&0x000f)
+		op = g.state.Instruction()
+		x  = fmt.Sprintf("v%x", (op&0x0f00)>>8)
+		y  = fmt.Sprintf("v%x", (op&0x00f0)>>4)
+		n  = fmt.Sprintf("%03x", op&0x0fff)
+		k  = fmt.Sprintf("%02x", op&0x00ff)
+		b  = fmt.Sprintf("%x", op&0x000f)
 	)
 
 	switch op & 0xf000 {
@@ -330,7 +268,7 @@ func decodeOp(s *State) string {
 	case 0xc000:
 		return fmt.Sprintf("rnd %s, %s", x, k)
 	case 0xd000:
-		return fmt.Sprintf("draw %s, %s, %s", x, y, nibble)
+		return fmt.Sprintf("draw %s, %s, %s", x, y, b)
 	case 0xe000:
 		switch op & 0xff {
 		case 0x9e:
@@ -362,4 +300,50 @@ func decodeOp(s *State) string {
 	}
 
 	return fmt.Sprintf("unknown (%04x)", op)
+}
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatalf("error: %v", err)
+	}
+}
+
+func run() error {
+	var debug bool
+
+	flag.BoolVar(&debug, "debug", false, "Start the emulator in debug mode")
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		return fmt.Errorf("invalid number of arguments")
+	}
+
+	rom, err := os.ReadFile(flag.Arg(0))
+	if err != nil {
+		return fmt.Errorf("read file: %v", err)
+	}
+
+	context := audio.NewContext(44100)
+
+	e := emulator.New()
+
+	e.Load(rom)
+
+	e.SetSound(func() {
+		context.NewPlayerFromBytes(beep).Play()
+	})
+
+	game := Game{
+		emulator: e,
+		debug:    debug,
+	}
+
+	ebiten.SetWindowSize(10*emulator.DisplayWidth, 10*emulator.DisplayHeight)
+	ebiten.SetWindowTitle("CHIP-8 Emulator")
+
+	if err := ebiten.RunGame(&game); err != nil {
+		return fmt.Errorf("run game: %v", err)
+	}
+
+	return nil
 }
