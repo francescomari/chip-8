@@ -11,10 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/francescomari/chip-8/emulator"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+
+	"github.com/francescomari/chip-8/emulator"
 )
 
 //go:embed beep.wav
