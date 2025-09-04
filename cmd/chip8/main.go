@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -43,9 +44,16 @@ type Game struct {
 	emulator *emulator.Emulator
 	debug    bool
 	state    emulator.State
+	once     sync.Once
 }
 
 func (g *Game) Update() error {
+	g.once.Do(func() {
+		if g.debug {
+			g.logDebugBanner()
+		}
+	})
+
 	var keys [16]ebiten.Key
 
 	for _, key := range inpututil.AppendJustPressedKeys(keys[:0]) {
@@ -62,6 +70,10 @@ func (g *Game) Update() error {
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
 		g.debug = !g.debug
+
+		if g.debug {
+			g.logDebugBanner()
+		}
 	}
 
 	if g.debug {
@@ -138,6 +150,13 @@ func (g *Game) logState() {
 	s.WriteString("\n")
 
 	log.Print(s.String())
+}
+
+func (g *Game) logDebugBanner() {
+	log.Printf("Debug mode:")
+	log.Printf(" [F10] Advance the clock")
+	log.Printf(" [F11] Next instruction")
+	log.Printf(" [F12] Exit debug mode")
 }
 
 func main() {
