@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -42,121 +40,73 @@ var mappings = map[ebiten.Key]uint8{
 }
 
 type Game struct {
-	emulator     *emulator.Emulator
-	debug        bool
-	once         sync.Once
-	state        *emulator.State
-	keyDownCh    chan uint8
-	keyUpCh      chan uint8
-	startDebugCh chan struct{}
-	stopDebugCh  chan struct{}
-	stepCh       chan time.Time
-	clockCh      chan time.Time
-	stateCh      chan chan *emulator.State
+	emulator *emulator.Emulator
+	debug    bool
+	state    emulator.State
 }
 
 func (g *Game) Update() error {
-	g.once.Do(func() {
-		g.keyDownCh = make(chan uint8)
-		g.keyUpCh = make(chan uint8)
-		g.startDebugCh = make(chan struct{})
-		g.stopDebugCh = make(chan struct{})
-		g.stepCh = make(chan time.Time)
-		g.clockCh = make(chan time.Time)
-		g.stateCh = make(chan chan *emulator.State)
-
-		go func() {
-			var (
-				tickerStepCh  = time.Tick(time.Second / 500)
-				tickerClockCh = time.Tick(time.Second / 60)
-			)
-
-			var (
-				stepCh  <-chan time.Time
-				clockCh <-chan time.Time
-			)
-
-			if g.debug {
-				stepCh = g.stepCh
-				clockCh = g.clockCh
-			} else {
-				stepCh = tickerStepCh
-				clockCh = tickerClockCh
-			}
-
-			for {
-				select {
-				case <-stepCh:
-					g.emulator.Step()
-				case <-clockCh:
-					g.emulator.Clock()
-				case k := <-g.keyDownCh:
-					g.emulator.KeyDown(k)
-				case k := <-g.keyUpCh:
-					g.emulator.KeyUp(k)
-				case <-g.startDebugCh:
-					stepCh = g.stepCh
-					clockCh = g.clockCh
-				case <-g.stopDebugCh:
-					stepCh = tickerStepCh
-					clockCh = tickerClockCh
-				case stateCh := <-g.stateCh:
-					s := new(emulator.State)
-					g.emulator.State(s)
-					stateCh <- s
-				}
-			}
-		}()
-	})
-
 	var keys [16]ebiten.Key
 
 	for _, key := range inpututil.AppendJustPressedKeys(keys[:0]) {
 		if value, ok := mappings[key]; ok {
-			g.keyDownCh <- value
+			g.emulator.KeyDown(value)
 		}
 	}
 
 	for _, key := range inpututil.AppendJustReleasedKeys(keys[:0]) {
 		if value, ok := mappings[key]; ok {
-			g.keyUpCh <- value
+			g.emulator.KeyUp(value)
 		}
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
-		if g.debug {
-			g.stopDebugCh <- struct{}{}
-		} else {
-			g.startDebugCh <- struct{}{}
-		}
-
 		g.debug = !g.debug
 	}
 
-	var printState bool
+	if g.debug {
+		var printState bool
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyF10) && g.debug {
-		g.stepCh <- time.Now()
-		printState = true
+		if inpututil.IsKeyJustPressed(ebiten.KeyF10) {
+			g.emulator.Clock()
+			printState = true
+		}
+
+		if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
+			g.emulator.Step()
+			printState = true
+		}
+
+		if printState {
+			g.logState()
+		}
+	} else {
+
+		// Ebitengine calls this function (by default) every 1/60 seconds. This
+		// frequency is determined by the Ticks Per Second (TPS) configuration
+		// option. Ebitengine will adjust the time between calls to Update() so that
+		// the code can assume a constant TPS and doesn't have to track the time
+		// internally.
+
+		g.emulator.Clock()
+
+		// Experimentally, 530 Instructions Per Second (IPS) seems to be a good
+		// speed to emulate CHIP-8 at. The number of instructions to run in a single
+		// call to Update() has been determined by dividing the IPS by the TPS, and
+		// truncating the result.
+
+		for range 8 {
+			g.emulator.Step()
+		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyF11) && g.debug {
-		g.clockCh <- time.Now()
-		printState = true
-	}
-
-	stateCh := make(chan *emulator.State)
-	g.stateCh <- stateCh
-	g.state = <-stateCh
-
-	if printState {
-		g.logState()
-	}
+	g.emulator.State(&g.state)
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+
 	// This uses the same color palette of the original Game Boy, as documented by
 	// https://en.wikipedia.org/wiki/List_of_video_game_console_palettes.
 
@@ -178,13 +128,13 @@ func (g *Game) Layout(_, _ int) (int, int) {
 func (g *Game) logState() {
 	var s strings.Builder
 
-	trace.PrintInstruction(&s, g.state)
+	trace.PrintInstruction(&s, &g.state)
 	s.WriteString("\n")
 
-	trace.PrintRegisters(&s, g.state)
+	trace.PrintRegisters(&s, &g.state)
 	s.WriteString("\n")
 
-	trace.PrintState(&s, g.state)
+	trace.PrintState(&s, &g.state)
 	s.WriteString("\n")
 
 	log.Print(s.String())
