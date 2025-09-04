@@ -16,6 +16,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/francescomari/chip-8/emulator"
+	"github.com/francescomari/chip-8/trace"
 )
 
 //go:embed beep.wav
@@ -175,131 +176,18 @@ func (g *Game) Layout(_, _ int) (int, int) {
 }
 
 func (g *Game) logState() {
-	log.Print(g.instructionString())
-	log.Print(g.registersString())
-	log.Print(g.stateString())
-}
+	var s strings.Builder
 
-func (g *Game) registersString() string {
-	var b strings.Builder
+	trace.PrintInstruction(&s, g.state)
+	s.WriteString("\n")
 
-	for i, v := range g.state.V {
-		if i > 0 {
-			fmt.Fprintf(&b, ", v%x = %02x", i, v)
-		} else {
-			fmt.Fprintf(&b, "v%x = %02x", i, v)
-		}
-	}
+	trace.PrintRegisters(&s, g.state)
+	s.WriteString("\n")
 
-	return b.String()
-}
+	trace.PrintState(&s, g.state)
+	s.WriteString("\n")
 
-func (g *Game) stateString() string {
-	var b strings.Builder
-
-	fmt.Fprintf(&b, "i = %04x,", g.state.I)
-	fmt.Fprintf(&b, "sp = %02x,", g.state.SP)
-	fmt.Fprintf(&b, "dt = %02x,", g.state.DT)
-	fmt.Fprintf(&b, "st = %02x,", g.state.ST)
-	fmt.Fprintf(&b, "pc = %04x", g.state.PC)
-
-	return b.String()
-}
-
-func (g *Game) instructionString() string {
-	var (
-		op = g.state.Instruction()
-		x  = fmt.Sprintf("v%x", (op&0x0f00)>>8)
-		y  = fmt.Sprintf("v%x", (op&0x00f0)>>4)
-		n  = fmt.Sprintf("%03x", op&0x0fff)
-		k  = fmt.Sprintf("%02x", op&0x00ff)
-		b  = fmt.Sprintf("%x", op&0x000f)
-	)
-
-	switch op & 0xf000 {
-	case 0x0000:
-		switch op & 0x00ff {
-		case 0x00e0:
-			return "cls"
-		case 0x00ee:
-			return "ret"
-		}
-	case 0x1000:
-		return fmt.Sprintf("jp %s", n)
-	case 0x2000:
-		return fmt.Sprintf("call %s", n)
-	case 0x3000:
-		return fmt.Sprintf("se %s, %s", x, k)
-	case 0x4000:
-		return fmt.Sprintf("sne %s, %s", x, k)
-	case 0x5000:
-		return fmt.Sprintf("se %s, %s", x, y)
-	case 0x6000:
-		return fmt.Sprintf("ld %s, %s", x, k)
-	case 0x7000:
-		return fmt.Sprintf("add %s, %s", x, k)
-	case 0x8000:
-		switch op & 0x000f {
-		case 0x0:
-			return fmt.Sprintf("ld %s, %s", x, y)
-		case 0x1:
-			return fmt.Sprintf("or %s, %s", x, y)
-		case 0x2:
-			return fmt.Sprintf("and %s, %s", x, y)
-		case 0x3:
-			return fmt.Sprintf("xor %s, %s", x, y)
-		case 0x4:
-			return fmt.Sprintf("add %s, %s", x, y)
-		case 0x5:
-			return fmt.Sprintf("sub %s, %s", x, y)
-		case 0x6:
-			return fmt.Sprintf("shr %s, %s", x, y)
-		case 0x7:
-			return fmt.Sprintf("subn %s, %s", x, y)
-		case 0xe:
-			return fmt.Sprintf("shl %s, %s", x, y)
-		}
-	case 0x9000:
-		return fmt.Sprintf("sne %s, %s", x, y)
-	case 0xa000:
-		return fmt.Sprintf("ld i, %s", n)
-	case 0xb000:
-		return fmt.Sprintf("jp v0, %s", n)
-	case 0xc000:
-		return fmt.Sprintf("rnd %s, %s", x, k)
-	case 0xd000:
-		return fmt.Sprintf("draw %s, %s, %s", x, y, b)
-	case 0xe000:
-		switch op & 0xff {
-		case 0x9e:
-			return fmt.Sprintf("skp %s", x)
-		case 0xa1:
-			return fmt.Sprintf("sknp %s", x)
-		}
-	case 0xf000:
-		switch op & 0xff {
-		case 0x07:
-			return fmt.Sprintf("ld %s, dt", x)
-		case 0x0a:
-			return fmt.Sprintf("ld %s, k", x)
-		case 0x15:
-			return fmt.Sprintf("ld dt, %s", x)
-		case 0x18:
-			return fmt.Sprintf("ld st, %s", x)
-		case 0x1e:
-			return fmt.Sprintf("add i, %s", x)
-		case 0x29:
-			return fmt.Sprintf("ld f, %s", x)
-		case 0x33:
-			return fmt.Sprintf("ld b, %s", x)
-		case 0x55:
-			return fmt.Sprintf("ld [i], %s", x)
-		case 0x65:
-			return fmt.Sprintf("ld %s, [i]", x)
-		}
-	}
-
-	return fmt.Sprintf("unknown (%04x)", op)
+	log.Print(s.String())
 }
 
 func main() {
