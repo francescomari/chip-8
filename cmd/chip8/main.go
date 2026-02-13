@@ -8,14 +8,30 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/francescomari/chip-8/emulator"
 	"github.com/francescomari/chip-8/trace"
+)
+
+const (
+	displayScale  = 10
+	displayWidth  = displayScale * emulator.DisplayWidth
+	displayHeight = displayScale * emulator.DisplayHeight
+)
+
+const (
+	debugCharacterWidth  = 6
+	debugCharacterHeight = 16
+	debugColumns         = 60
+	debugRows            = 14
+	debugPanelScale      = 2
+	debugPanelWidth      = debugPanelScale * debugColumns * debugCharacterWidth
+	debugPanelHeight     = debugPanelScale * debugRows * debugCharacterHeight
 )
 
 //go:embed beep.wav
@@ -41,19 +57,32 @@ var mappings = map[ebiten.Key]uint8{
 }
 
 type Game struct {
-	emulator *emulator.Emulator
-	debug    bool
-	state    emulator.State
-	once     sync.Once
+	emulator   *emulator.Emulator
+	debug      bool
+	state      emulator.State
+	display    *ebiten.Image
+	debugPanel *ebiten.Image
+}
+
+func (g *Game) setDebug(debug bool) {
+	g.debug = debug
+	g.adjustWindowSize()
+}
+
+func (g *Game) toggleDebug() {
+	g.debug = !g.debug
+	g.adjustWindowSize()
+}
+
+func (g *Game) adjustWindowSize() {
+	if g.debug {
+		ebiten.SetWindowSize(displayWidth, displayHeight+debugPanelHeight)
+	} else {
+		ebiten.SetWindowSize(displayWidth, displayHeight)
+	}
 }
 
 func (g *Game) Update() error {
-	g.once.Do(func() {
-		if g.debug {
-			g.logDebugBanner()
-		}
-	})
-
 	var keys [16]ebiten.Key
 
 	for _, key := range inpututil.AppendJustPressedKeys(keys[:0]) {
@@ -68,29 +97,17 @@ func (g *Game) Update() error {
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
-		g.debug = !g.debug
-
-		if g.debug {
-			g.logDebugBanner()
-		}
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		g.toggleDebug()
 	}
 
 	if g.debug {
-		var printState bool
-
-		if inpututil.IsKeyJustPressed(ebiten.KeyF10) {
+		if inpututil.IsKeyJustPressed(ebiten.KeyI) {
 			g.emulator.Clock()
-			printState = true
 		}
 
-		if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
+		if inpututil.IsKeyJustPressed(ebiten.KeyO) {
 			g.emulator.Step()
-			printState = true
-		}
-
-		if printState {
-			g.logState()
 		}
 	} else {
 
@@ -118,6 +135,25 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	g.drawDisplay()
+
+	var screenOptions ebiten.DrawImageOptions
+	screenOptions.GeoM.Scale(displayScale, displayScale)
+
+	screen.DrawImage(g.display, &screenOptions)
+
+	if g.debug {
+		g.drawDebugPanel()
+
+		var debugPanelOptions ebiten.DrawImageOptions
+		debugPanelOptions.GeoM.Scale(debugPanelScale, debugPanelScale)
+		debugPanelOptions.GeoM.Translate(0, displayHeight)
+
+		screen.DrawImage(g.debugPanel, &debugPanelOptions)
+	}
+}
+
+func (g *Game) drawDisplay() {
 
 	// This uses the same color palette of the original Game Boy, as documented by
 	// https://en.wikipedia.org/wiki/List_of_video_game_console_palettes.
@@ -125,38 +161,59 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for y := range g.state.Display {
 		for x := range g.state.Display[y] {
 			if g.state.Display[y][x] != 0 {
-				screen.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 0xff})
+				g.display.Set(x, y, color.RGBA{R: 0x29, G: 0x41, B: 0x39, A: 0xff})
 			} else {
-				screen.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 0xff})
+				g.display.Set(x, y, color.RGBA{R: 0x7b, G: 0x82, B: 0x10, A: 0xff})
 			}
 		}
 	}
 }
 
+func (g *Game) drawDebugPanel() {
+	var w strings.Builder
+
+	out := func(s string, args ...any) {
+		_, _ = fmt.Fprintf(&w, s, args...)
+	}
+
+	var i strings.Builder
+	trace.PrintInstruction(&i, &g.state)
+
+	out("Instruction:\n")
+	out("> %s\n\n", i.String())
+	out("Registers:")
+
+	for i, v := range g.state.V {
+		if i%8 == 0 {
+			out("\n")
+		} else {
+			out(" ")
+		}
+		out("v%x=%02x", i, v)
+	}
+
+	out("\n\n")
+	out("State:\n")
+	out("pc=%04x ", g.state.PC)
+	out("i=%04x ", g.state.I)
+	out("sp=%02x ", g.state.SP)
+	out("dt=%02x ", g.state.DT)
+	out("st=%02x\n\n", g.state.ST)
+	out("[I] Advance time\n")
+	out("[O] Step instruction\n")
+	out("[P] Toggle debug mode\n")
+
+	g.debugPanel.Clear()
+
+	ebitenutil.DebugPrint(g.debugPanel, w.String())
+}
+
 func (g *Game) Layout(_, _ int) (int, int) {
-	return emulator.DisplayWidth, emulator.DisplayHeight
-}
+	if g.debug {
+		return displayWidth, displayHeight + debugPanelHeight
+	}
 
-func (g *Game) logState() {
-	var s strings.Builder
-
-	trace.PrintInstruction(&s, &g.state)
-	s.WriteString("\n")
-
-	trace.PrintRegisters(&s, &g.state)
-	s.WriteString("\n")
-
-	trace.PrintState(&s, &g.state)
-	s.WriteString("\n")
-
-	log.Print(s.String())
-}
-
-func (g *Game) logDebugBanner() {
-	log.Printf("Debug mode:")
-	log.Printf(" [F10] Advance the clock")
-	log.Printf(" [F11] Next instruction")
-	log.Printf(" [F12] Exit debug mode")
+	return displayWidth, displayHeight
 }
 
 func main() {
@@ -191,11 +248,13 @@ func run() error {
 	})
 
 	game := Game{
-		emulator: e,
-		debug:    debug,
+		emulator:   e,
+		display:    ebiten.NewImage(emulator.DisplayWidth, emulator.DisplayHeight),
+		debugPanel: ebiten.NewImage(debugPanelWidth, debugPanelHeight),
 	}
 
-	ebiten.SetWindowSize(10*emulator.DisplayWidth, 10*emulator.DisplayHeight)
+	game.setDebug(debug)
+
 	ebiten.SetWindowTitle("CHIP-8 Emulator")
 
 	if err := ebiten.RunGame(&game); err != nil {
