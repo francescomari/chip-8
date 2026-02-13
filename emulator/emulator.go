@@ -349,7 +349,7 @@ func (e *Emulator) jump(op uint16) {
 func (e *Emulator) functionCall(op uint16) {
 	e.state.Stack[e.state.SP] = e.state.PC
 	e.state.SP++
-	e.state.PC = op & 0xfff
+	e.state.PC = op & MaskNNN
 }
 
 func (e *Emulator) skipIfConstantEqual(op uint16) {
