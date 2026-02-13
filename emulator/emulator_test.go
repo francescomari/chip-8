@@ -634,14 +634,16 @@ func TestSoundTimer(t *testing.T) {
 		sound = true
 	})
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
 		0xf0, 0x18, // LD ST, V0
 		0xf0, 0x15, // LD DT, V0
 		0xf1, 0x07, // LD V1, DT
 		0x31, 0x00, // SE V1, 0x00
 		0x12, 0x06, // JP 0x206
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	clock := time.Tick(time.Second / 60)
 
@@ -686,14 +688,16 @@ func TestSkipOnKeyDown(t *testing.T) {
 
 	e.KeyDown(0xf)
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
 		0xe0, 0x9e, // SKP V0
 		0x61, 0x01, // LD V1, 0x01
 		0x60, 0x0e, // LD V0, 0x0e
 		0xe0, 0x9e, // SKP V0
 		0x62, 0x01, // LD V2, 0x02
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	for {
 		ok, err := e.Step()
@@ -715,14 +719,16 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 
 	e.KeyDown(0xf)
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0x60, 0x0f, // LD V0, 0x0f
 		0xe0, 0xa1, // SKPN V0
 		0x61, 0x01, // LD V1, 0x01
 		0x60, 0x0e, // LD V0, 0x0e
 		0xe0, 0xa1, // SKPN V0
 		0x62, 0x01, // LD V2, 0x02
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	for {
 		ok, err := e.Step()
@@ -756,9 +762,11 @@ func TestSkipWithoutKeyDown(t *testing.T) {
 func TestWaitKeyPress(t *testing.T) {
 	e := emulator.New()
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0xf0, 0x0a, // LD V0, K
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	ok, err := e.Step()
 	if err != nil {
@@ -795,9 +803,11 @@ func TestRandom(t *testing.T) {
 		return 0x88
 	})
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0xc0, 0x0f, // RND V0, 0xff
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	for {
 		ok, err := e.Step()
@@ -813,12 +823,24 @@ func TestRandom(t *testing.T) {
 		register(0x0, 0x08)
 }
 
+func TestLoadOversizedProgram(t *testing.T) {
+	e := emulator.New()
+
+	program := make([]uint8, 4096-emulator.ProgramStart+1)
+
+	if err := e.Load(program); err == nil {
+		t.Fatal("expected error for oversized program")
+	}
+}
+
 func TestStepInvalidOpcode(t *testing.T) {
 	e := emulator.New()
 
-	e.Load([]uint8{
+	if err := e.Load([]uint8{
 		0x80, 0x09, // Invalid ALU opcode
-	})
+	}); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	if _, err := e.Step(); err == nil {
 		t.Fatal("expected error for invalid opcode")
@@ -909,7 +931,9 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 
 	e := emulator.New()
 
-	e.Load(data)
+	if err := e.Load(data); err != nil {
+		t.Fatalf("load: %v", err)
+	}
 
 	clock := time.Tick(time.Second / 60)
 

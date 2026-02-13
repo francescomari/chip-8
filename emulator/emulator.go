@@ -215,9 +215,14 @@ func (e *Emulator) SetSound(sound func()) {
 	e.sound = sound
 }
 
-// Load copies program into memory starting at [ProgramStart].
-func (e *Emulator) Load(program []uint8) {
+// Load copies program into memory starting at [ProgramStart]. It returns an
+// error if the program is too large to fit in the available memory.
+func (e *Emulator) Load(program []uint8) error {
+	if len(program) > len(e.state.Memory)-ProgramStart {
+		return fmt.Errorf("program too large: %d bytes (max %d)", len(program), len(e.state.Memory)-ProgramStart)
+	}
 	copy(e.state.Memory[ProgramStart:], program)
+	return nil
 }
 
 // Step decodes and executes the instruction at the current program counter.

@@ -261,7 +261,9 @@ func run() error {
 
 	e := emulator.New()
 
-	e.Load(rom)
+	if err := e.Load(rom); err != nil {
+		return fmt.Errorf("load: %w", err)
+	}
 
 	e.SetSound(func() {
 		context.NewPlayerFromBytes(beep).Play()
