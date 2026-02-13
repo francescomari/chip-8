@@ -915,6 +915,8 @@ func (c checks) display(x, y int, on bool) checks {
 }
 
 func (c checks) delayTimer(want uint8) checks {
+	c.t.Helper()
+
 	var state emulator.State
 
 	c.e.State(&state)
