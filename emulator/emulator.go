@@ -150,7 +150,7 @@ type Emulator struct {
 	waitKey         bool          // Waiting for a key press?
 	waitKeyRegister uint8         // Where to store the pressed key, if waiting
 	rng             func() uint32 // Random number generator
-	sound           func()        // Callback called when the sound timer
+	sound           func()        // Callback called when the sound timer expires
 }
 
 // New returns a new Emulator ready to execute a program loaded with [Emulator.Load].
