@@ -195,11 +195,8 @@ func (g *Game) drawDebugPanel() {
 		_, _ = fmt.Fprintf(&w, s, args...)
 	}
 
-	var i strings.Builder
-	trace.PrintInstruction(&i, &g.state)
-
 	out("Instruction:\n")
-	out("> %s\n\n", i.String())
+	out("> %v\n\n", trace.Instruction(g.state.Instruction()))
 	out("Registers:")
 
 	for i, v := range g.state.V {

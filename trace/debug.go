@@ -42,98 +42,107 @@ func PrintState(w io.Writer, state *emulator.State) {
 // PrintInstruction writes the assembly mnemonic for the instruction at the
 // current program counter of state to w.
 func PrintInstruction(w io.Writer, state *emulator.State) {
+	out := printer(w)
+
+	out("%v", Instruction(state.Instruction()))
+}
+
+// Instruction wraps a raw instruction from the emulator's state and returns a
+// printable representation of the opcode and its arguments.
+type Instruction uint16
+
+func (i Instruction) String() string {
 	var (
-		op  = state.Instruction()
-		x   = fmt.Sprintf("v%x", (op&emulator.MaskX)>>emulator.ShiftX)
-		y   = fmt.Sprintf("v%x", (op&emulator.MaskY)>>emulator.ShiftY)
-		n   = fmt.Sprintf("%03x", op&emulator.MaskNNN)
-		k   = fmt.Sprintf("%02x", op&emulator.MaskKK)
-		b   = fmt.Sprintf("%x", op&emulator.MaskN)
-		out = printer(w)
+		op = uint16(i)
+		x  = fmt.Sprintf("v%x", (op&emulator.MaskX)>>emulator.ShiftX)
+		y  = fmt.Sprintf("v%x", (op&emulator.MaskY)>>emulator.ShiftY)
+		n  = fmt.Sprintf("%03x", op&emulator.MaskNNN)
+		k  = fmt.Sprintf("%02x", op&emulator.MaskKK)
+		b  = fmt.Sprintf("%x", op&emulator.MaskN)
 	)
 
 	switch op & emulator.MaskFamily {
 	case emulator.OpTypeSys:
 		switch op & emulator.MaskKK {
 		case emulator.OpCLS:
-			out("cls")
+			return "cls"
 		case emulator.OpRET:
-			out("ret")
+			return "ret"
 		}
 	case emulator.OpTypeJP:
-		out("jp %s", n)
+		return fmt.Sprintf("jp %s", n)
 	case emulator.OpTypeCALL:
-		out("call %s", n)
+		return fmt.Sprintf("call %s", n)
 	case emulator.OpTypeSE:
-		out("se %s, %s", x, k)
+		return fmt.Sprintf("se %s, %s", x, k)
 	case emulator.OpTypeSNE:
-		out("sne %s, %s", x, k)
+		return fmt.Sprintf("sne %s, %s", x, k)
 	case emulator.OpTypeSEV:
-		out("se %s, %s", x, y)
+		return fmt.Sprintf("se %s, %s", x, y)
 	case emulator.OpTypeLD:
-		out("ld %s, %s", x, k)
+		return fmt.Sprintf("ld %s, %s", x, k)
 	case emulator.OpTypeADD:
-		out("add %s, %s", x, k)
+		return fmt.Sprintf("add %s, %s", x, k)
 	case emulator.OpTypeALU:
 		switch op & emulator.MaskN {
 		case emulator.OpLDVV:
-			out("ld %s, %s", x, y)
+			return fmt.Sprintf("ld %s, %s", x, y)
 		case emulator.OpORVV:
-			out("or %s, %s", x, y)
+			return fmt.Sprintf("or %s, %s", x, y)
 		case emulator.OpANDVV:
-			out("and %s, %s", x, y)
+			return fmt.Sprintf("and %s, %s", x, y)
 		case emulator.OpXORVV:
-			out("xor %s, %s", x, y)
+			return fmt.Sprintf("xor %s, %s", x, y)
 		case emulator.OpADDVV:
-			out("add %s, %s", x, y)
+			return fmt.Sprintf("add %s, %s", x, y)
 		case emulator.OpSUBVV:
-			out("sub %s, %s", x, y)
+			return fmt.Sprintf("sub %s, %s", x, y)
 		case emulator.OpSHR:
-			out("shr %s, %s", x, y)
+			return fmt.Sprintf("shr %s, %s", x, y)
 		case emulator.OpSUBN:
-			out("subn %s, %s", x, y)
+			return fmt.Sprintf("subn %s, %s", x, y)
 		case emulator.OpSHL:
-			out("shl %s, %s", x, y)
+			return fmt.Sprintf("shl %s, %s", x, y)
 		}
 	case emulator.OpTypeSNEV:
-		out("sne %s, %s", x, y)
+		return fmt.Sprintf("sne %s, %s", x, y)
 	case emulator.OpTypeLDI:
-		out("ld i, %s", n)
+		return fmt.Sprintf("ld i, %s", n)
 	case emulator.OpTypeJPV:
-		out("jp v0, %s", n)
+		return fmt.Sprintf("jp v0, %s", n)
 	case emulator.OpTypeRND:
-		out("rnd %s, %s", x, k)
+		return fmt.Sprintf("rnd %s, %s", x, k)
 	case emulator.OpTypeDRW:
-		out("draw %s, %s, %s", x, y, b)
+		return fmt.Sprintf("draw %s, %s, %s", x, y, b)
 	case emulator.OpTypeKey:
 		switch op & emulator.MaskKK {
 		case emulator.OpSKP:
-			out("skp %s", x)
+			return fmt.Sprintf("skp %s", x)
 		case emulator.OpSKNP:
-			out("sknp %s", x)
+			return fmt.Sprintf("sknp %s", x)
 		}
 	case emulator.OpTypeMisc:
 		switch op & emulator.MaskKK {
 		case emulator.OpLDVDT:
-			out("ld %s, dt", x)
+			return fmt.Sprintf("ld %s, dt", x)
 		case emulator.OpLDVK:
-			out("ld %s, k", x)
+			return fmt.Sprintf("ld %s, k", x)
 		case emulator.OpLDDTV:
-			out("ld dt, %s", x)
+			return fmt.Sprintf("ld dt, %s", x)
 		case emulator.OpLDSTV:
-			out("ld st, %s", x)
+			return fmt.Sprintf("ld st, %s", x)
 		case emulator.OpADDIV:
-			out("add i, %s", x)
+			return fmt.Sprintf("add i, %s", x)
 		case emulator.OpLDF:
-			out("ld f, %s", x)
+			return fmt.Sprintf("ld f, %s", x)
 		case emulator.OpLDB:
-			out("ld b, %s", x)
+			return fmt.Sprintf("ld b, %s", x)
 		case emulator.OpSTMV:
-			out("ld [i], %s", x)
+			return fmt.Sprintf("ld [i], %s", x)
 		case emulator.OpLDVM:
-			out("ld %s, [i]", x)
+			return fmt.Sprintf("ld %s, [i]", x)
 		}
-	default:
-		out("unknown (%04x)", op)
 	}
+
+	return fmt.Sprintf("unknown (%04x)", op)
 }
