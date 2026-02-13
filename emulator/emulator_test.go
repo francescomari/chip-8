@@ -2,7 +2,6 @@ package emulator_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/francescomari/chip-8/emulator"
 )
@@ -645,7 +644,7 @@ func TestSoundTimer(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 
-	clock := time.Tick(time.Second / 60)
+	var steps int
 
 	for {
 		ok, err := e.Step()
@@ -655,11 +654,9 @@ func TestSoundTimer(t *testing.T) {
 		if !ok {
 			break
 		}
-		select {
-		case <-clock:
+		steps++
+		if steps%8 == 0 {
 			e.Clock()
-		default:
-			continue
 		}
 	}
 
@@ -937,7 +934,7 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 		t.Fatalf("load: %v", err)
 	}
 
-	clock := time.Tick(time.Second / 60)
+	var steps int
 
 	for {
 		ok, err := e.Step()
@@ -947,11 +944,9 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 		if !ok {
 			break
 		}
-		select {
-		case <-clock:
+		steps++
+		if steps%8 == 0 {
 			e.Clock()
-		default:
-			continue
 		}
 	}
 
