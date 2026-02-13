@@ -13,6 +13,8 @@ func printer(w io.Writer) func(string, ...any) {
 	}
 }
 
+// PrintRegisters writes the values of all general-purpose registers (V0–VF)
+// from state to w as a comma-separated list.
 func PrintRegisters(w io.Writer, state *emulator.State) {
 	out := printer(w)
 
@@ -25,6 +27,8 @@ func PrintRegisters(w io.Writer, state *emulator.State) {
 	}
 }
 
+// PrintState writes the values of the special-purpose registers (I, SP, DT, ST,
+// and PC) from state to w as a comma-separated list.
 func PrintState(w io.Writer, state *emulator.State) {
 	out := printer(w)
 
@@ -35,96 +39,98 @@ func PrintState(w io.Writer, state *emulator.State) {
 	out("pc = %04x", state.PC)
 }
 
+// PrintInstruction writes the assembly mnemonic for the instruction at the
+// current program counter of state to w.
 func PrintInstruction(w io.Writer, state *emulator.State) {
 	var (
 		op  = state.Instruction()
-		x   = fmt.Sprintf("v%x", (op&0x0f00)>>8)
-		y   = fmt.Sprintf("v%x", (op&0x00f0)>>4)
-		n   = fmt.Sprintf("%03x", op&0x0fff)
-		k   = fmt.Sprintf("%02x", op&0x00ff)
-		b   = fmt.Sprintf("%x", op&0x000f)
+		x   = fmt.Sprintf("v%x", (op&emulator.MaskX)>>emulator.ShiftX)
+		y   = fmt.Sprintf("v%x", (op&emulator.MaskY)>>emulator.ShiftY)
+		n   = fmt.Sprintf("%03x", op&emulator.MaskNNN)
+		k   = fmt.Sprintf("%02x", op&emulator.MaskKK)
+		b   = fmt.Sprintf("%x", op&emulator.MaskN)
 		out = printer(w)
 	)
 
-	switch op & 0xf000 {
-	case 0x0000:
-		switch op & 0x00ff {
-		case 0x00e0:
+	switch op & emulator.MaskFamily {
+	case emulator.OpTypeSys:
+		switch op & emulator.MaskKK {
+		case emulator.OpCLS:
 			out("cls")
-		case 0x00ee:
+		case emulator.OpRET:
 			out("ret")
 		}
-	case 0x1000:
+	case emulator.OpTypeJP:
 		out("jp %s", n)
-	case 0x2000:
+	case emulator.OpTypeCALL:
 		out("call %s", n)
-	case 0x3000:
+	case emulator.OpTypeSE:
 		out("se %s, %s", x, k)
-	case 0x4000:
+	case emulator.OpTypeSNE:
 		out("sne %s, %s", x, k)
-	case 0x5000:
+	case emulator.OpTypeSEV:
 		out("se %s, %s", x, y)
-	case 0x6000:
+	case emulator.OpTypeLD:
 		out("ld %s, %s", x, k)
-	case 0x7000:
+	case emulator.OpTypeADD:
 		out("add %s, %s", x, k)
-	case 0x8000:
-		switch op & 0x000f {
-		case 0x0:
+	case emulator.OpTypeALU:
+		switch op & emulator.MaskN {
+		case emulator.OpLDVV:
 			out("ld %s, %s", x, y)
-		case 0x1:
+		case emulator.OpORVV:
 			out("or %s, %s", x, y)
-		case 0x2:
+		case emulator.OpANDVV:
 			out("and %s, %s", x, y)
-		case 0x3:
+		case emulator.OpXORVV:
 			out("xor %s, %s", x, y)
-		case 0x4:
+		case emulator.OpADDVV:
 			out("add %s, %s", x, y)
-		case 0x5:
+		case emulator.OpSUBVV:
 			out("sub %s, %s", x, y)
-		case 0x6:
+		case emulator.OpSHR:
 			out("shr %s, %s", x, y)
-		case 0x7:
+		case emulator.OpSUBN:
 			out("subn %s, %s", x, y)
-		case 0xe:
+		case emulator.OpSHL:
 			out("shl %s, %s", x, y)
 		}
-	case 0x9000:
+	case emulator.OpTypeSNEV:
 		out("sne %s, %s", x, y)
-	case 0xa000:
+	case emulator.OpTypeLDI:
 		out("ld i, %s", n)
-	case 0xb000:
+	case emulator.OpTypeJPV:
 		out("jp v0, %s", n)
-	case 0xc000:
+	case emulator.OpTypeRND:
 		out("rnd %s, %s", x, k)
-	case 0xd000:
+	case emulator.OpTypeDRW:
 		out("draw %s, %s, %s", x, y, b)
-	case 0xe000:
-		switch op & 0xff {
-		case 0x9e:
+	case emulator.OpTypeKey:
+		switch op & emulator.MaskKK {
+		case emulator.OpSKP:
 			out("skp %s", x)
-		case 0xa1:
+		case emulator.OpSKNP:
 			out("sknp %s", x)
 		}
-	case 0xf000:
-		switch op & 0xff {
-		case 0x07:
+	case emulator.OpTypeMisc:
+		switch op & emulator.MaskKK {
+		case emulator.OpLDVDT:
 			out("ld %s, dt", x)
-		case 0x0a:
+		case emulator.OpLDVK:
 			out("ld %s, k", x)
-		case 0x15:
+		case emulator.OpLDDTV:
 			out("ld dt, %s", x)
-		case 0x18:
+		case emulator.OpLDSTV:
 			out("ld st, %s", x)
-		case 0x1e:
+		case emulator.OpADDIV:
 			out("add i, %s", x)
-		case 0x29:
+		case emulator.OpLDF:
 			out("ld f, %s", x)
-		case 0x33:
+		case emulator.OpLDB:
 			out("ld b, %s", x)
-		case 0x55:
+		case emulator.OpSTMV:
 			out("ld [i], %s", x)
-		case 0x65:
+		case emulator.OpLDVM:
 			out("ld %s, [i]", x)
 		}
 	default:
