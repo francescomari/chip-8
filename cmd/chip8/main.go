@@ -66,6 +66,7 @@ var mappings = map[ebiten.Key]uint8{
 type Game struct {
 	emulator   *emulator.Emulator
 	debug      bool
+	halted     bool
 	state      emulator.State
 	display    *ebiten.Image
 	debugPanel *ebiten.Image
@@ -126,8 +127,8 @@ func (g *Game) Update() error {
 		}
 
 		if inpututil.IsKeyJustPressed(ebiten.KeyO) {
-			if _, err := g.emulator.Step(); err != nil {
-				return fmt.Errorf("step: %w", err)
+			if err := g.step(); err != nil {
+				return fmt.Errorf("step: %v", err)
 			}
 		}
 	} else {
@@ -146,14 +147,28 @@ func (g *Game) Update() error {
 		// truncating the result.
 
 		for range 8 {
-			if _, err := g.emulator.Step(); err != nil {
-				return fmt.Errorf("step: %w", err)
+			if err := g.step(); err != nil {
+				return fmt.Errorf("step: %v", err)
 			}
 		}
 	}
 
 	g.emulator.State(&g.state)
 
+	return nil
+}
+
+func (g *Game) step() error {
+	if g.halted {
+		return nil
+	}
+	ok, err := g.emulator.Step()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		g.halted = true
+	}
 	return nil
 }
 
