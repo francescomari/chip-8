@@ -14,8 +14,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
+	"github.com/francescomari/chip-8/debug"
 	"github.com/francescomari/chip-8/emulator"
-	"github.com/francescomari/chip-8/trace"
 )
 
 const (
@@ -196,7 +196,7 @@ func (g *Game) drawDebugPanel() {
 	}
 
 	out("Instruction:\n")
-	out("> %v\n\n", trace.Instruction(g.state.Instruction()))
+	out("> %v\n\n", debug.Instruction(g.state.Instruction()))
 	out("Registers:")
 
 	for i, v := range g.state.V {
