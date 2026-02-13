@@ -34,6 +34,13 @@ const (
 	debugPanelHeight     = debugPanelScale * debugRows * debugCharacterHeight
 )
 
+const (
+	regularWindowWidth  = displayWidth
+	regularWindowHeight = displayHeight
+	debugWindowWidth    = displayWidth
+	debugWindowHeight   = displayHeight + debugPanelHeight
+)
+
 //go:embed beep.wav
 var beep []byte
 
@@ -88,9 +95,9 @@ func (g *Game) toggleDebug() {
 
 func (g *Game) adjustWindowSize() {
 	if g.debug {
-		ebiten.SetWindowSize(displayWidth, displayHeight+debugPanelHeight)
+		ebiten.SetWindowSize(debugWindowWidth, debugWindowHeight)
 	} else {
-		ebiten.SetWindowSize(displayWidth, displayHeight)
+		ebiten.SetWindowSize(regularWindowWidth, regularWindowHeight)
 	}
 }
 
