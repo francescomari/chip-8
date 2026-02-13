@@ -64,7 +64,19 @@ type Game struct {
 	debugPanel *ebiten.Image
 }
 
-func (g *Game) setDebug(debug bool) {
+func NewGame(e *emulator.Emulator) (*Game, error) {
+	if e == nil {
+		return nil, fmt.Errorf("no emulator provided")
+	}
+
+	return &Game{
+		emulator:   e,
+		display:    ebiten.NewImage(emulator.DisplayWidth, emulator.DisplayHeight),
+		debugPanel: ebiten.NewImage(debugPanelWidth, debugPanelHeight),
+	}, nil
+}
+
+func (g *Game) SetDebug(debug bool) {
 	g.debug = debug
 	g.adjustWindowSize()
 }
@@ -247,17 +259,16 @@ func run() error {
 		context.NewPlayerFromBytes(beep).Play()
 	})
 
-	game := Game{
-		emulator:   e,
-		display:    ebiten.NewImage(emulator.DisplayWidth, emulator.DisplayHeight),
-		debugPanel: ebiten.NewImage(debugPanelWidth, debugPanelHeight),
+	g, err := NewGame(e)
+	if err != nil {
+		return fmt.Errorf("create game: %v", err)
 	}
 
-	game.setDebug(debug)
+	g.SetDebug(debug)
 
 	ebiten.SetWindowTitle("CHIP-8 Emulator")
 
-	if err := ebiten.RunGame(&game); err != nil {
+	if err := ebiten.RunGame(g); err != nil {
 		return fmt.Errorf("run game: %v", err)
 	}
 
