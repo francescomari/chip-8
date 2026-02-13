@@ -221,8 +221,9 @@ func (e *Emulator) Load(program []uint8) {
 }
 
 // Step decodes and executes the instruction at the current program counter.
-// It returns true if execution should continue, or false if the emulator has halted.
-func (e *Emulator) Step() bool {
+// It returns true if execution should continue, or false if the emulator has
+// halted. It returns an error if the instruction is not recognized.
+func (e *Emulator) Step() (bool, error) {
 	op := e.state.Instruction()
 
 	// The opcode 0NNN jumps to a machine code routine at address NNN, but it is
@@ -237,9 +238,9 @@ func (e *Emulator) Step() bool {
 		case OpRET:
 			e.functionReturn()
 		case OpHALT:
-			return false
+			return false, nil
 		default:
-			panic(fmt.Sprintf("invalid opcode: %x", op))
+			return false, fmt.Errorf("invalid opcode: %04x", op)
 		}
 	case OpTypeJP:
 		e.jump(op)
@@ -276,7 +277,7 @@ func (e *Emulator) Step() bool {
 		case OpSHL:
 			e.shiftLeft(op)
 		default:
-			panic(fmt.Sprintf("invalid opcode: %x", op))
+			return false, fmt.Errorf("invalid opcode: %04x", op)
 		}
 	case OpTypeSNEV:
 		e.skipIfRegisterNotEqual(op)
@@ -295,7 +296,7 @@ func (e *Emulator) Step() bool {
 		case OpSKNP:
 			e.skipIfKeyNotPressed(op)
 		default:
-			panic(fmt.Sprintf("invalid opcode: %x", op))
+			return false, fmt.Errorf("invalid opcode: %04x", op)
 		}
 	case OpTypeMisc:
 		switch op & MaskKK {
@@ -318,11 +319,11 @@ func (e *Emulator) Step() bool {
 		case OpLDVM:
 			e.loadRegistersFromMemory(op)
 		default:
-			panic(fmt.Sprintf("invalid opcode: %x", op))
+			return false, fmt.Errorf("invalid opcode: %04x", op)
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 func (e *Emulator) clearDisplay() {

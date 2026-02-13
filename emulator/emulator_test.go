@@ -645,7 +645,14 @@ func TestSoundTimer(t *testing.T) {
 
 	clock := time.Tick(time.Second / 60)
 
-	for e.Step() {
+	for {
+		ok, err := e.Step()
+		if err != nil {
+			t.Fatalf("step: %v", err)
+		}
+		if !ok {
+			break
+		}
 		select {
 		case <-clock:
 			e.Clock()
@@ -688,8 +695,14 @@ func TestSkipOnKeyDown(t *testing.T) {
 		0x62, 0x01, // LD V2, 0x02
 	})
 
-	for e.Step() {
-		// Run next instruction.
+	for {
+		ok, err := e.Step()
+		if err != nil {
+			t.Fatalf("step: %v", err)
+		}
+		if !ok {
+			break
+		}
 	}
 
 	check(t, e).
@@ -711,8 +724,14 @@ func TestSkipOnKeyNotDown(t *testing.T) {
 		0x62, 0x01, // LD V2, 0x02
 	})
 
-	for e.Step() {
-		// Run next instruction.
+	for {
+		ok, err := e.Step()
+		if err != nil {
+			t.Fatalf("step: %v", err)
+		}
+		if !ok {
+			break
+		}
 	}
 
 	check(t, e).
@@ -741,7 +760,11 @@ func TestWaitKeyPress(t *testing.T) {
 		0xf0, 0x0a, // LD V0, K
 	})
 
-	if !e.Step() {
+	ok, err := e.Step()
+	if err != nil {
+		t.Fatalf("step: %v", err)
+	}
+	if !ok {
 		t.Fatal("should continue")
 	}
 
@@ -756,7 +779,11 @@ func TestWaitKeyPress(t *testing.T) {
 	check(t, e).
 		register(0x0, 0x0f)
 
-	if e.Step() {
+	ok, err = e.Step()
+	if err != nil {
+		t.Fatalf("step: %v", err)
+	}
+	if ok {
 		t.Fatal("should stop")
 	}
 }
@@ -772,12 +799,30 @@ func TestRandom(t *testing.T) {
 		0xc0, 0x0f, // RND V0, 0xff
 	})
 
-	for e.Step() {
-		// Run next instruction.
+	for {
+		ok, err := e.Step()
+		if err != nil {
+			t.Fatalf("step: %v", err)
+		}
+		if !ok {
+			break
+		}
 	}
 
 	check(t, e).
 		register(0x0, 0x08)
+}
+
+func TestStepInvalidOpcode(t *testing.T) {
+	e := emulator.New()
+
+	e.Load([]uint8{
+		0x80, 0x09, // Invalid ALU opcode
+	})
+
+	if _, err := e.Step(); err == nil {
+		t.Fatal("expected error for invalid opcode")
+	}
 }
 
 func check(t *testing.T, e *emulator.Emulator) checks {
@@ -868,7 +913,14 @@ func run(t *testing.T, data ...uint8) *emulator.Emulator {
 
 	clock := time.Tick(time.Second / 60)
 
-	for e.Step() {
+	for {
+		ok, err := e.Step()
+		if err != nil {
+			t.Fatalf("step: %v", err)
+		}
+		if !ok {
+			break
+		}
 		select {
 		case <-clock:
 			e.Clock()

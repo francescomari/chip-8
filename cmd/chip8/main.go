@@ -126,7 +126,9 @@ func (g *Game) Update() error {
 		}
 
 		if inpututil.IsKeyJustPressed(ebiten.KeyO) {
-			g.emulator.Step()
+			if _, err := g.emulator.Step(); err != nil {
+				return fmt.Errorf("step: %w", err)
+			}
 		}
 	} else {
 
@@ -144,7 +146,9 @@ func (g *Game) Update() error {
 		// truncating the result.
 
 		for range 8 {
-			g.emulator.Step()
+			if _, err := g.emulator.Step(); err != nil {
+				return fmt.Errorf("step: %w", err)
+			}
 		}
 	}
 
